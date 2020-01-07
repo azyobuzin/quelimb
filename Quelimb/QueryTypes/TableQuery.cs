@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 using Dawn;
-using Quelimb.QueryTypes;
 
 namespace Quelimb
 {
@@ -27,105 +24,49 @@ namespace Quelimb
             this.TableClauses = baseTableClauses.Add(Tuple.Create(tableType, tableClause));
         }
 
+        /*
         public TypedQuery<TRecord> Select<TRecord>(FormattableString selectClause, FormattableString afterFromClause = null)
         {
             Guard.Argument(afterFromClause, nameof(afterFromClause)).NotNull();
 
-            var builder = ImmutableArray.CreateBuilder<FormattableString>(4);
-            builder.Add($"SELECT ");
-            builder.Add(selectClause);
-            builder.Add($" {new RawQuery(this.CreateTableReferences())}");
+            var builder = ImmutableArray.CreateBuilder<StringOrFormattableString>();
+            builder.Add(new StringOrFormattableString("SELECT "));
+            builder.Add(new StringOrFormattableString(selectClause));
+            builder.Add(new StringOrFormattableString(" FROM "));
+            this.CreateTableReferences(builder);
 
             if (afterFromClause != null)
             {
-                builder.Add($" ");
-                builder.Add(afterFromClause);
+                builder.Add(new StringOrFormattableString(" "));
+                builder.Add(new StringOrFormattableString(afterFromClause));
             }
 
             return new TypedQuery<TRecord>(builder.ToImmutable(), null); // TODO: recordConverter
         }
+        */
 
-        public UntypedQuery Update(FormattableString afterTableReferences)
-        {
-            return this.Update("UPDATE", afterTableReferences);
-        }
-
-        public UntypedQuery Update(string verb, FormattableString afterTableReferences)
-        {
-            Guard.Argument(verb, nameof(verb)).NotNull().NotEmpty();
-            Guard.Argument(afterTableReferences, nameof(afterTableReferences)).NotNull();
-
-            return new UntypedQuery(ImmutableArray.Create<FormattableString>(
-                $"{new RawQuery(verb)} {new RawQuery(this.CreateTableReferences())} ",
-                afterTableReferences));
-        }
-
-        public UntypedQuery Delete(FormattableString afterTableReferences = null)
-        {
-            if (this.TableClauses.Any(x => !(x.Item2 is FromClause)))
-                throw new InvalidOperationException("DELETE cannot be contain JOINs.");
-
-            var sb = new StringBuilder("DELETE FROM ");
-
-            using (var enumerator = this.TableClauses.GetEnumerator())
-            {
-                if (!enumerator.MoveNext()) throw new InvalidOperationException("TableClauses is empty.");
-
-                sb.Append(enumerator.Current.Item2.CreateSql(
-                    this.Environment.TableInfoProvider.GetTableInfoByType(enumerator.Current.Item1).TableName,
-                    this.Environment.Generator));
-
-                if (enumerator.MoveNext())
-                {
-                    sb.Append(" USING ");
-                    var first = true;
-                    do
-                    {
-                        if (first) first = false;
-                        else sb.Append(", ");
-
-                        var t = enumerator.Current;
-                        var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(t.Item1).TableName;
-                        sb.Append(t.Item2.CreateSql(tableName, this.Environment.Generator));
-                    } while (enumerator.MoveNext());
-                }
-            }
-
-            return new UntypedQuery(afterTableReferences == null
-                ? ImmutableArray.Create<FormattableString>($"{new RawQuery(sb.ToString())}")
-                : ImmutableArray.Create<FormattableString>($"{new RawQuery(sb.ToString())} ", afterTableReferences));
-        }
-
-        private string CreateTableReferences()
+        private void CreateTableReferences(ImmutableArray<StringOrFormattableString>.Builder sb)
         {
             // FROM
-            var sb = new StringBuilder(" FROM ");
             var first = true;
             foreach (var table in this.TableClauses)
             {
                 if (!(table.Item2 is FromClause)) continue;
 
                 if (first) first = false;
-                else sb.Append(", ");
+                else sb.Add(new StringOrFormattableString(", "));
 
-                var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(table.Item1).TableName;
-                sb.Append(table.Item2.CreateSql(tableName, this.Environment.Generator));
+                sb.AddRange(table.Item2.CreateSql(this.Environment.Generator));
             }
 
             // JOIN
-            first = true;
             foreach (var table in this.TableClauses)
             {
                 if (table.Item2 is FromClause) continue;
 
-                if (first) first = false;
-                else sb.Append(" ");
-
-                var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(table.Item1).TableName;
-                sb.Append(table.Item2.CreateSql(tableName, this.Environment.Generator));
+                sb.Add(new StringOrFormattableString(" "));
+                sb.AddRange(table.Item2.CreateSql(this.Environment.Generator));
             }
-
-            return sb.ToString();
         }
     }
 
@@ -136,39 +77,32 @@ namespace Quelimb
         {
         }
 
-        public TableQuery<T1, T2> FromTable<T2>(string alias = null, bool only = false)
+        public TableQuery<T1, T2> From<T2>(string alias = null, bool only = false)
         {
-            return new TableQuery<T1, T2>(this, new FromClause(alias, only));
+            var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(typeof(T2)).TableName;
+            return new TableQuery<T1, T2>(this, new FromClause(typeof(T2), tableName, alias, only));
         }
 
-        // TODO: ON で FormattableString 使いたい
-        public TableQuery<T1, T2> Join<T2>(JoinClause joinClause)
+        public TableQuery<T1, T2> Join<T2>(Expression<Func<JoinBuilder, T1, T2, JoinBuilder>> builderExpr)
         {
+            Guard.Argument(builderExpr, nameof(builderExpr)).NotNull();
+
+            var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(typeof(T2)).TableName;
+            // TODO: builderExpr を変形
+            var joinClause = builderExpr.Compile()(new JoinBuilder(), default, default).Build(typeof(T2), tableName);
             return new TableQuery<T1, T2>(this, joinClause);
         }
 
-        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<T1, FormattableString>> selectClause, Expression<Func<T1, FormattableString>> afterFromClause = null)
+        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<SelectBuilder, T1, SelectBuilder<TRecord>>> builderExpr)
         {
+            Guard.Argument(builderExpr, nameof(builderExpr)).NotNull();
             throw new NotImplementedException();
         }
 
-        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<T1, TRecord>> mapper, Expression<Func<T1, FormattableString>> afterFromClause = null)
+        public TypedQuery<TRecord> Select<S1, S2, TRecord>(Expression<Func<SelectBuilder, T1, SelectBuilder<S1, S2>>> builderExpr, Func<S1, S2, TRecord> mapper)
         {
-            throw new NotImplementedException();
-        }
-
-        public UntypedQuery Update(Expression<Func<T1, FormattableString>> afterTableReferences)
-        {
-            return this.Update("UPDATE", afterTableReferences);
-        }
-
-        public UntypedQuery Update(string verb, Expression<Func<T1, FormattableString>> afterTableReferences)
-        {
-            throw new NotImplementedException();
-        }
-
-        public UntypedQuery Delete(Expression<Func<T1, FormattableString>> afterTableReferences)
-        {
+            Guard.Argument(builderExpr, nameof(builderExpr)).NotNull();
+            Guard.Argument(mapper, nameof(mapper)).NotNull();
             throw new NotImplementedException();
         }
     }
@@ -181,9 +115,10 @@ namespace Quelimb
                   typeof(T2), tableClause)
         { }
 
-        public TableQuery<T1, T2, T3> FromTable<T3>(string alias = null, bool only = false)
+        public TableQuery<T1, T2, T3> From<T3>(string alias = null, bool only = false)
         {
-            return new TableQuery<T1, T2, T3>(this, new FromClause(alias, only));
+            var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(typeof(T3)).TableName;
+            return new TableQuery<T1, T2, T3>(this, new FromClause(typeof(T3), tableName, alias, only));
         }
 
         public TableQuery<T1, T2, T3> Join<T3>(JoinClause joinClause)
@@ -191,28 +126,16 @@ namespace Quelimb
             return new TableQuery<T1, T2, T3>(this, joinClause);
         }
 
-        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<T1, T2, FormattableString>> selectClause, Expression<Func<T1, T2, FormattableString>> afterFromClause = null)
+        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<SelectBuilder, T1, T2, SelectBuilder<TRecord>>> builderExpr)
         {
+            Guard.Argument(builderExpr, nameof(builderExpr)).NotNull();
             throw new NotImplementedException();
         }
 
-        public TypedQuery<TRecord> Select<TRecord>(Expression<Func<T1, T2, TRecord>> mapper, Expression<Func<T1, T2, FormattableString>> afterFromClause = null)
+        public TypedQuery<TRecord> Select<S1, S2, TRecord>(Expression<Func<SelectBuilder, T1, T2, SelectBuilder<S1, S2>>> builderExpr, Func<S1, S2, TRecord> mapper)
         {
-            throw new NotImplementedException();
-        }
-
-        public UntypedQuery Update(Expression<Func<T1, T2, FormattableString>> afterTableReferences)
-        {
-            return this.Update("UPDATE", afterTableReferences);
-        }
-
-        public UntypedQuery Update(string verb, Expression<Func<T1, T2, FormattableString>> afterTableReferences)
-        {
-            throw new NotImplementedException();
-        }
-
-        public UntypedQuery Delete(Expression<Func<T1, T2, FormattableString>> afterTableReferences)
-        {
+            Guard.Argument(builderExpr, nameof(builderExpr)).NotNull();
+            Guard.Argument(mapper, nameof(mapper)).NotNull();
             throw new NotImplementedException();
         }
     }

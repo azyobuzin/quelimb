@@ -2,7 +2,7 @@
 using Quelimb.SqlGenerators;
 using Quelimb.TableInfoProviders;
 
-namespace Quelimb.QueryTypes
+namespace Quelimb
 {
     public class QueryEnvironment
     {

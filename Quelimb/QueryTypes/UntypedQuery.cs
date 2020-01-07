@@ -6,17 +6,17 @@ namespace Quelimb
 {
     public class UntypedQuery
     {
-        protected ImmutableArray<FormattableString> QueryStrings { get; }
+        protected ImmutableArray<StringOrFormattableString> QueryStrings { get; }
 
-        public UntypedQuery(ImmutableArray<FormattableString> queryStrings)
+        public UntypedQuery(ImmutableArray<StringOrFormattableString> queryStrings)
         {
             Guard.Argument(queryStrings, nameof(queryStrings)).Require(!queryStrings.IsDefaultOrEmpty, _ => "queryStrings is empty.");
             this.QueryStrings = queryStrings;
         }
 
-        public UntypedQuery(FormattableString query)
+        public UntypedQuery(StringOrFormattableString query)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
+            Guard.Argument(query, nameof(query)).NotDefault().NotEmpty();
             this.QueryStrings = ImmutableArray.Create(query);
         }
 

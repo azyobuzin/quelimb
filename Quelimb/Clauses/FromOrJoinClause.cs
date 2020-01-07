@@ -1,17 +1,22 @@
-﻿using Quelimb.SqlGenerators;
+﻿using System;
+using System.Collections.Generic;
+using Quelimb.SqlGenerators;
 
 namespace Quelimb
 {
     public abstract class FromOrJoinClause
     {
+        public Type TableType { get; }
+        public string TableName { get; }
         public string Alias { get; }
 
-        protected FromOrJoinClause(string alias)
+        protected FromOrJoinClause(Type tableType, string tableName, string alias)
         {
+            this.TableType = tableType;
+            this.TableName = tableName;
             this.Alias = alias;
         }
 
-        // TODO: 最初からテーブル名持っていていい気がしてきた
-        public abstract string CreateSql(string tableName, ISqlGenerator generator);
+        public abstract IEnumerable<StringOrFormattableString> CreateSql(ISqlGenerator generator);
     }
 }
