@@ -1,21 +1,21 @@
 ﻿using Dawn;
 using Quelimb.SqlGenerators;
-using Quelimb.TableInfoProviders;
+using Quelimb.Converters;
 
 namespace Quelimb
 {
     public class QueryEnvironment
     {
         public ISqlGenerator Generator { get; }
-        public ITableInfoProvider TableInfoProvider { get; }
+        public IConverterProvider RecordConverterProvider { get; }
 
-        public QueryEnvironment(ISqlGenerator generator, ITableInfoProvider tableInfoProvider)
+        public QueryEnvironment(ISqlGenerator generator, IConverterProvider recordConverterProvider)
         {
             Guard.Argument(generator, nameof(generator)).NotNull();
-            Guard.Argument(tableInfoProvider, nameof(tableInfoProvider)).NotNull();
+            Guard.Argument(recordConverterProvider, nameof(recordConverterProvider)).NotNull();
 
             this.Generator = generator;
-            this.TableInfoProvider = tableInfoProvider;
+            this.RecordConverterProvider = recordConverterProvider;
         }
     }
 }

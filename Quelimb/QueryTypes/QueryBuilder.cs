@@ -13,12 +13,6 @@ namespace Quelimb
             this.Environment = environment;
         }
 
-        public TableQuery<T> From<T>(string alias = null, bool only = false)
-        {
-            var tableName = this.Environment.TableInfoProvider.GetTableInfoByType(typeof(T)).TableName;
-            return new TableQuery<T>(this.Environment, new FromClause(typeof(T), tableName, alias, only));
-        }
-
         public UntypedQuery QueryS(string query)
         {
             Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
