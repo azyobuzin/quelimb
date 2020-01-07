@@ -1,4 +1,6 @@
-﻿namespace Quelimb
+﻿using Quelimb.SqlGenerators;
+
+namespace Quelimb
 {
     public abstract class FromOrJoinClause
     {
@@ -8,5 +10,8 @@
         {
             this.Alias = alias;
         }
+
+        // TODO: 最初からテーブル名持っていていい気がしてきた
+        public abstract string CreateSql(string tableName, ISqlGenerator generator);
     }
 }

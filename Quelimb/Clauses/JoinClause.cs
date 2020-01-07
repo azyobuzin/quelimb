@@ -84,13 +84,13 @@ namespace Quelimb
             return new JoinClause(this.Alias, "NATURAL " + this.JoinType);
         }
 
-        public virtual string CreateSql(string tableName, ISqlGenerator generator)
+        public override string CreateSql(string tableName, ISqlGenerator generator)
         {
             Guard.Argument(tableName, nameof(tableName)).NotNull();
             Guard.Argument(generator, nameof(generator)).NotNull();
 
             var sb = new StringBuilder(this.JoinType)
-                .Append(" JOIN")
+                .Append(" JOIN ")
                 .Append(generator.EscapeIdentifier(tableName));
 
             if (this.Alias != null)
