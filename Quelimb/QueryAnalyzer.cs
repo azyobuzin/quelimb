@@ -4,7 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Quelimb.Converters;
+using Quelimb.TableMappers;
 
 namespace Quelimb
 {
@@ -20,7 +20,7 @@ namespace Quelimb
         internal FormattableString ExtractFormattableString(LambdaExpression lambda)
         {
             var tableDictionary = lambda.Parameters
-                .ToDictionary(x => x, x => new TableReference(this._environment.RecordConverterProvider.GetTableInfoByType(x.Type)));
+                .ToDictionary(x => x, x => new TableReference(this._environment.TableMapperProvider.GetTableByType(x.Type)));
             var rewritedExpr = new RewriteTableReferenceVisitor(tableDictionary).Visit(lambda.Body);
             return Expression.Lambda<Func<FormattableString>>(rewritedExpr).Compile()();
         }
@@ -29,12 +29,12 @@ namespace Quelimb
 
         internal sealed class TableReference
         {
-            public ITableInfo TableInfo { get; }
+            public TableMapper TableMapper { get; }
             public string Alias { get; set; }
 
-            public TableReference(ITableInfo tableInfo)
+            public TableReference(TableMapper tableMapper)
             {
-                this.TableInfo = tableInfo;
+                this.TableMapper = tableMapper;
             }
         }
 
@@ -96,10 +96,10 @@ namespace Quelimb
                         memberExpr.Expression is ParameterExpression parameterExpr &&
                         this._tableDictionary.TryGetValue(parameterExpr, out var tableRef))
                     {
-                        var columnInfo = tableRef.TableInfo.GetColumnForSelect(memberExpr.Member);
-                        if (columnInfo == null) throw new InvalidOperationException(memberExpr.Member.ToString() + " could not be resolved as a column.");
+                        var columnName = tableRef.TableMapper.GetColumnNameByMemberInfo(memberExpr.Member);
+                        if (columnName == null) throw new InvalidOperationException(memberExpr.Member.ToString() + " could not be resolved as a column.");
                         return Expression.Convert(
-                            Expression.Constant(new ColumnReference(tableRef, columnInfo.ColumnName)),
+                            Expression.Constant(new ColumnReference(tableRef, columnName)),
                             typeof(object));
                     }
                 }

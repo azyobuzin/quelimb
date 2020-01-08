@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Data;
 using Dawn;
 
 namespace Quelimb
@@ -7,9 +8,9 @@ namespace Quelimb
     public class TypedQuery<TRecord>
     {
         protected ImmutableArray<StringOrFormattableString> QueryStrings { get; }
-        protected RecordConverter<TRecord> RecordConverter { get; }
+        protected Func<IDataRecord, TRecord> RecordConverter { get; }
 
-        public TypedQuery(ImmutableArray<StringOrFormattableString> queryStrings, RecordConverter<TRecord> recordConverter)
+        public TypedQuery(ImmutableArray<StringOrFormattableString> queryStrings, Func<IDataRecord, TRecord> recordConverter)
         {
             Guard.Argument(queryStrings, nameof(queryStrings)).Require(!queryStrings.IsDefaultOrEmpty, _ => "queryStrings is empty.");
             Guard.Argument(recordConverter, nameof(recordConverter)).NotNull();

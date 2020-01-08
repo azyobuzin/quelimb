@@ -9,16 +9,13 @@ namespace Quelimb.TableMappers
     public class DefaultTableMapperProvider : TableMapperProvider
     {
         private static TableMapperProvider s_default;
-        public static TableMapperProvider Default => s_default ??
-            (s_default = new DefaultTableMapperProvider(DefaultValueConverter.Default));
+        public static TableMapperProvider Default => s_default ?? (s_default = new DefaultTableMapperProvider());
 
-        protected ValueConverter ValueConverter { get; }
         private readonly ConcurrentDictionary<Type, TableMapper> _cache = new ConcurrentDictionary<Type, TableMapper>();
         private readonly Func<Type, TableMapper> _factory;
 
-        public DefaultTableMapperProvider(ValueConverter valueConverter)
+        public DefaultTableMapperProvider()
         {
-            this.ValueConverter = valueConverter;
             this._factory = this.CreateTableMapper;
         }
 
@@ -35,17 +32,27 @@ namespace Quelimb.TableMappers
 
             foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.Instance))
             {
-                switch (member.MemberType)
-                {
-                    case MemberTypes.Property:
-                    case MemberTypes.Field:
-                        if (!member.IsDefined(typeof(NotMappedAttribute)))
-                            columns.Add(this.CreateColumnMapper(member));
-                        break;
-                }
+                if (MemberIsColumn(member)) columns.Add(this.CreateColumnMapper(member));
             }
 
             return new DefaultTableMapper(tableName, type, columns);
+        }
+
+        private static bool MemberIsColumn(MemberInfo memberInfo)
+        {
+            switch (memberInfo.MemberType)
+            {
+                case MemberTypes.Property:
+                    if (((PropertyInfo)memberInfo).GetIndexParameters().Length != 0)
+                        return false;
+                    break;
+                case MemberTypes.Field:
+                    break;
+                default:
+                    return false;
+            }
+
+            return !memberInfo.IsDefined(typeof(NotMappedAttribute));
         }
 
         private ColumnMapper CreateColumnMapper(MemberInfo memberInfo)

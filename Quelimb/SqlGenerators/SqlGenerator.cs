@@ -1,8 +1,8 @@
 ﻿namespace Quelimb.SqlGenerators
 {
-    public class GenericSqlGenerator : ISqlGenerator
+    public class SqlGenerator
     {
-        public static GenericSqlGenerator Instance { get; } = new GenericSqlGenerator();
+        public static SqlGenerator Instance { get; } = new SqlGenerator();
 
         public virtual string EscapeIdentifier(string identifier)
         {
