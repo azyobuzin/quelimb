@@ -1,4 +1,5 @@
-﻿using Dawn;
+﻿using System.Text;
+using Dawn;
 
 namespace Quelimb.SqlGenerators
 {
@@ -6,10 +7,16 @@ namespace Quelimb.SqlGenerators
     {
         public static SqlGenerator Instance { get; } = new SqlGenerator();
 
-        public virtual string EscapeIdentifier(string identifier)
+        public virtual void EscapeIdentifier(string identifier, StringBuilder destination)
         {
             Guard.Argument(identifier, nameof(identifier)).NotNull();
-            return "\"" + identifier.Replace("\"", "\"\"") + "\"";
+            Guard.Argument(destination, nameof(destination)).NotNull();
+
+            destination.Append('"');
+            var startIndex = destination.Length;
+            destination.Append(identifier);
+            destination.Replace("\"", "\"\"", startIndex, destination.Length - startIndex);
+            destination.Append('"');
         }
     }
 }

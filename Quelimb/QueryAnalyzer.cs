@@ -1,39 +1,80 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using Dawn;
 using Quelimb.TableMappers;
 
 namespace Quelimb
 {
-    internal class QueryAnalyzer
+    internal static class QueryAnalyzer
     {
-        private readonly QueryEnvironment _environment;
-
-        internal QueryAnalyzer(QueryEnvironment environment)
+        internal static FormattableString ExtractFormattableString(LambdaExpression lambda, QueryEnvironment environment)
         {
-            this._environment = environment;
-        }
+            Guard.Argument(lambda, nameof(lambda)).NotNull();
+            Guard.Argument(environment, nameof(environment)).NotNull();
 
-        internal FormattableString ExtractFormattableString(LambdaExpression lambda)
-        {
-            var tableDictionary = lambda.Parameters
-                .ToDictionary(
-                    x => x,
-                    x =>
-                    {
-                        var tableMapper = this._environment.TableMapperProvider.GetTableByType(x.Type);
-                        if (tableMapper == null)
-                            throw new ArgumentException($"A parameter `{x}` cannot be resolved as a table.", nameof(lambda));
-                        return new TableReference(tableMapper);
-                    });
+            var tableDictionary = new Dictionary<ParameterExpression, TableReference>();
+            foreach (var parameter in lambda.Parameters)
+            {
+                var tableMapper = environment.TableMapperProvider.GetTableByType(parameter.Type);
+                if (tableMapper == null)
+                    throw new ArgumentException($"A parameter `{parameter}` cannot be resolved as a table.", nameof(lambda));
+
+                tableDictionary.Add(parameter, new TableReference(tableMapper));
+            }
+
             var rewritedExpr = new RewriteTableReferenceVisitor(tableDictionary).Visit(lambda.Body);
-            return Expression.Lambda<Func<FormattableString>>(rewritedExpr).Compile()();
+            var fs = Expression.Lambda<Func<FormattableString>>(rewritedExpr).Compile()();
+
+            if (fs == null) throw new InvalidOperationException("The lambda expression returned null.");
+
+            ResolveTableAliases(fs);
+            return fs;
         }
 
-        // TODO: Read from FormattableString
+        private static void ResolveTableAliases(FormattableString query)
+        {
+            var matches = Regex.Matches(
+                query.Format,
+                @"(?<!\{)\{\d*([0-9]+)\s*:\s*AS(?!\w)\s*((?:[^\}]|\}\})+)\}",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+            var arguments = query.GetArguments();
+
+            foreach (Match match in matches)
+            {
+                var argIndex = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                if (arguments[argIndex] is TableReference tableRef)
+                {
+                    if (tableRef.EscapedAlias != null)
+                        throw new FormatException($"AS specifier for {tableRef.TableMapper.TableName} is appeared multiple times.");
+                    tableRef.EscapedAlias = match.Groups[2].Value;
+                }
+            }
+        }
+
+        internal static void SetQueryToDbCommand(FormattableString query, IDbCommand command, QueryEnvironment environment)
+        {
+            Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
+            Guard.Argument(command, nameof(command)).NotNull();
+            Guard.Argument(environment, nameof(environment)).NotNull();
+
+            var sb = environment.StringBuilderPool.Get();
+            try
+            {
+                // TODO
+            }
+            finally
+            {
+                environment.StringBuilderPool.Return(sb);
+            }
+        }
 
         internal sealed class TableReference
         {
@@ -58,7 +99,7 @@ namespace Quelimb
             }
         }
 
-        internal sealed class RewriteTableReferenceVisitor : ExpressionVisitor
+        private sealed class RewriteTableReferenceVisitor : ExpressionVisitor
         {
             private static readonly MethodInfo s_createFormattableStringMethod = typeof(FormattableStringFactory)
                 .GetTypeInfo()
