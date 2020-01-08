@@ -29,7 +29,7 @@ namespace Quelimb.TableMappers
                 Kvf(typeof(short), (r, c, _) => r.GetInt16(c)),
                 Kvf(typeof(int), (r, c, _) => r.GetInt32(c)),
                 Kvf(typeof(long), (r, c, _) => r.GetInt64(c)),
-                Kvf(typeof(string), (r, c, _) => r.GetString(c)),
+                Kvf(typeof(string), (r, c, _) => r.IsDBNull(c) ? null : r.GetString(c)),
                 Kvf(typeof(object), (r, c, _) => r.GetValue(c)),
                 Kvf(typeof(sbyte), (r, c, _) => checked((sbyte)r.GetInt16(c))),
                 Kvf(typeof(ushort), (r, c, _) => checked((ushort)r.GetInt32(c))),
@@ -81,10 +81,10 @@ namespace Quelimb.TableMappers
                 type,
                 key =>
                 {
+                    // Create converter for Nullable<T>
                     Type? underlyingType = Nullable.GetUnderlyingType(key);
-                    return underlyingType != null && converter.CanConvertFrom(underlyingType)
-                        ? (r, c, v) => v.ConvertFrom(r, c, underlyingType!)
-                        : (Func<IDataRecord, int, ValueConverter, object?>?)null;
+                    if (underlyingType == null || !converter.CanConvertFrom(underlyingType)) return null;
+                    return (r, c, v) => r.IsDBNull(c) ? null : v.ConvertFrom(r, c, underlyingType);
                 });
         }
 
