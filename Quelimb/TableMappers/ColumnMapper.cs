@@ -23,7 +23,7 @@ namespace Quelimb.TableMappers
 
         public virtual void SetValue(object target, IDataRecord record, int columnIndex, ValueConverter converter)
         {
-            object converted;
+            object? converted;
 
             switch (this.MemberInfo)
             {

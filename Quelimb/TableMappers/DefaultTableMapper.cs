@@ -13,13 +13,13 @@ namespace Quelimb.TableMappers
         protected Type Type { get; }
         protected ImmutableArray<ColumnMapper> Columns { get; }
         private ImmutableArray<string> _columnNames;
-        private ImmutableDictionary<MemberInfo, string> _columnNameDictionary;
+        private ImmutableDictionary<MemberInfo, string>? _columnNameDictionary;
 
-        public DefaultTableMapper(string tableName, Type type, IEnumerable<ColumnMapper> columns)
+        public DefaultTableMapper(string tableName, Type type, IEnumerable<ColumnMapper>? columns)
         {
             this.TableName = tableName;
             this.Type = type;
-            this.Columns = columns.ToImmutableArray();
+            this.Columns = columns?.ToImmutableArray() ?? ImmutableArray<ColumnMapper>.Empty;
         }
 
         public override IEnumerable<string> GetColumnsNamesForSelect()
@@ -30,7 +30,7 @@ namespace Quelimb.TableMappers
             return this._columnNames;
         }
 
-        public override string GetColumnNameByMemberInfo(MemberInfo member)
+        public override string? GetColumnNameByMemberInfo(MemberInfo member)
         {
             if (this._columnNameDictionary == null)
                 this._columnNameDictionary = ImmutableDictionary.CreateRange(

@@ -3,12 +3,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
+using Dawn;
 
 namespace Quelimb.TableMappers
 {
     public class DefaultTableMapperProvider : TableMapperProvider
     {
-        private static TableMapperProvider s_default;
+        private static TableMapperProvider? s_default;
         public static TableMapperProvider Default => s_default ?? (s_default = new DefaultTableMapperProvider());
 
         private readonly ConcurrentDictionary<Type, TableMapper> _cache = new ConcurrentDictionary<Type, TableMapper>();
@@ -19,14 +20,17 @@ namespace Quelimb.TableMappers
             this._factory = this.CreateTableMapper;
         }
 
-        public override TableMapper GetTableByType(Type type)
+        public override TableMapper? GetTableByType(Type type)
         {
+            Guard.Argument(type, nameof(type)).NotNull();
             return this._cache.GetOrAdd(type, this._factory);
         }
 
         protected virtual TableMapper CreateTableMapper(Type type)
         {
-            var tableAttribute = type.GetCustomAttribute<TableAttribute>();
+            Guard.Argument(type, nameof(type)).NotNull();
+
+            TableAttribute? tableAttribute = type.GetCustomAttribute<TableAttribute>();
             var tableName = tableAttribute?.Name ?? type.Name;
             var columns = new List<ColumnMapper>();
 
@@ -57,7 +61,7 @@ namespace Quelimb.TableMappers
 
         private ColumnMapper CreateColumnMapper(MemberInfo memberInfo)
         {
-            var columnAttribute = memberInfo.GetCustomAttribute<ColumnAttribute>();
+            ColumnAttribute? columnAttribute = memberInfo.GetCustomAttribute<ColumnAttribute>();
             var columnName = columnAttribute?.Name ?? memberInfo.Name;
             return new ColumnMapper(columnName, memberInfo);
         }

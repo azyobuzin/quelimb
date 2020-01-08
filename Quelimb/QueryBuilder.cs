@@ -21,7 +21,7 @@ namespace Quelimb
 
         public UntypedQuery QueryF(FormattableString query)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
+            Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
             return new UntypedQuery(new StringOrFormattableString(query));
         }
 

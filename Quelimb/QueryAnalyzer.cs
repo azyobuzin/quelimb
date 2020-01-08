@@ -20,7 +20,15 @@ namespace Quelimb
         internal FormattableString ExtractFormattableString(LambdaExpression lambda)
         {
             var tableDictionary = lambda.Parameters
-                .ToDictionary(x => x, x => new TableReference(this._environment.TableMapperProvider.GetTableByType(x.Type)));
+                .ToDictionary(
+                    x => x,
+                    x =>
+                    {
+                        var tableMapper = this._environment.TableMapperProvider.GetTableByType(x.Type);
+                        if (tableMapper == null)
+                            throw new ArgumentException($"A parameter `{x}` cannot be resolved as a table.", nameof(lambda));
+                        return new TableReference(tableMapper);
+                    });
             var rewritedExpr = new RewriteTableReferenceVisitor(tableDictionary).Visit(lambda.Body);
             return Expression.Lambda<Func<FormattableString>>(rewritedExpr).Compile()();
         }
@@ -30,7 +38,7 @@ namespace Quelimb
         internal sealed class TableReference
         {
             public TableMapper TableMapper { get; }
-            public string Alias { get; set; }
+            public string? EscapedAlias { get; set; }
 
             public TableReference(TableMapper tableMapper)
             {
@@ -56,9 +64,9 @@ namespace Quelimb
                 .GetTypeInfo()
                 .GetRuntimeMethod(nameof(FormattableStringFactory.Create), new[] { typeof(string), typeof(object[]) });
 
-            private readonly Dictionary<ParameterExpression, TableReference> _tableDictionary;
+            private readonly IReadOnlyDictionary<ParameterExpression, TableReference> _tableDictionary;
 
-            public RewriteTableReferenceVisitor(Dictionary<ParameterExpression, TableReference> tableDictionary)
+            public RewriteTableReferenceVisitor(IReadOnlyDictionary<ParameterExpression, TableReference> tableDictionary)
             {
                 this._tableDictionary = tableDictionary;
             }

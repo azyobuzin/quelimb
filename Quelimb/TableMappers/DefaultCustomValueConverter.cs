@@ -2,20 +2,21 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using Dawn;
 
 namespace Quelimb.TableMappers
 {
     internal sealed class DefaultCustomValueConverter : CustomValueConverter
     {
-        private static CustomValueConverter s_instance;
+        private static CustomValueConverter? s_instance;
         public static CustomValueConverter Instance =>
             s_instance ?? (s_instance = new DefaultCustomValueConverter());
 
-        private readonly ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object>> _convertFromCache;
+        private readonly ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?> _convertFromCache;
 
         public DefaultCustomValueConverter()
         {
-            this._convertFromCache = new ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object>>(new[]
+            this._convertFromCache = new ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>(new[]
             {
                 Kvf(typeof(bool), (r, c, _) => r.GetBoolean(c)),
                 Kvf(typeof(byte), (r, c, _) => r.GetByte(c)),
@@ -40,11 +41,18 @@ namespace Quelimb.TableMappers
 
         public override bool CanConvertFrom(Type type, ValueConverter converter)
         {
+            Guard.Argument(type, nameof(type)).NotNull();
+            Guard.Argument(converter, nameof(converter)).NotNull();
+
             return this.LookupCacheToConvertFrom(type, converter) != null;
         }
 
-        public override object ConvertFrom(IDataRecord record, int columnIndex, Type type, ValueConverter converter)
+        public override object? ConvertFrom(IDataRecord record, int columnIndex, Type type, ValueConverter converter)
         {
+            Guard.Argument(record, nameof(record)).NotNull();
+            Guard.Argument(type, nameof(type)).NotNull();
+            Guard.Argument(converter, nameof(converter)).NotNull();
+
             var convertFunc = this.LookupCacheToConvertFrom(type, converter);
             if (convertFunc == null) return base.ConvertFrom(record, columnIndex, type, converter);
             return convertFunc(record, columnIndex, converter);
@@ -55,26 +63,28 @@ namespace Quelimb.TableMappers
             return true;
         }
 
-        public override void ConvertTo(object value, IDbDataParameter destination, ValueConverter converter)
+        public override void ConvertTo(object? value, IDbDataParameter destination, ValueConverter converter)
         {
+            Guard.Argument(destination, nameof(destination)).NotNull();
+
             destination.Value = value;
         }
 
-        private static KeyValuePair<Type, Func<IDataRecord, int, ValueConverter, object>> Kvf(Type type, Func<IDataRecord, int, ValueConverter, object> convertFrom)
+        private static KeyValuePair<Type, Func<IDataRecord, int, ValueConverter, object?>?> Kvf(Type type, Func<IDataRecord, int, ValueConverter, object?> convertFrom)
         {
-            return new KeyValuePair<Type, Func<IDataRecord, int, ValueConverter, object>>(type, convertFrom);
+            return new KeyValuePair<Type, Func<IDataRecord, int, ValueConverter, object?>?>(type, convertFrom);
         }
 
-        private Func<IDataRecord, int, ValueConverter, object> LookupCacheToConvertFrom(Type type, ValueConverter converter)
+        private Func<IDataRecord, int, ValueConverter, object?>? LookupCacheToConvertFrom(Type type, ValueConverter converter)
         {
             return this._convertFromCache.GetOrAdd(
                 type,
                 key =>
                 {
-                    var underlyingType = Nullable.GetUnderlyingType(key);
+                    Type? underlyingType = Nullable.GetUnderlyingType(key);
                     return underlyingType != null && converter.CanConvertFrom(underlyingType)
-                        ? (r, c, v) => v.ConvertFrom(r, c, underlyingType)
-                        : (Func<IDataRecord, int, ValueConverter, object>)null;
+                        ? (r, c, v) => v.ConvertFrom(r, c, underlyingType!)
+                        : (Func<IDataRecord, int, ValueConverter, object?>?)null;
                 });
         }
 

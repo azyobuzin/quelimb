@@ -13,8 +13,8 @@ namespace Quelimb.TableMappers
         /// </summary>
         public abstract IEnumerable<string> GetColumnsNamesForSelect();
 
-        public abstract string GetColumnNameByMemberInfo(MemberInfo member);
+        public abstract string? GetColumnNameByMemberInfo(MemberInfo member);
 
-        public abstract object CreateObjectFromRecord(IDataRecord record, int columnIndex, ValueConverter converter);
+        public abstract object? CreateObjectFromRecord(IDataRecord record, int columnIndex, ValueConverter converter);
     }
 }

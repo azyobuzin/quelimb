@@ -5,17 +5,14 @@ using Dawn;
 
 namespace Quelimb
 {
-    public class TypedQuery<TRecord>
+    public class TypedQuery<TRecord> : UntypedQuery
     {
-        protected ImmutableArray<StringOrFormattableString> QueryStrings { get; }
         protected Func<IDataRecord, TRecord> RecordConverter { get; }
 
         public TypedQuery(ImmutableArray<StringOrFormattableString> queryStrings, Func<IDataRecord, TRecord> recordConverter)
+            : base(queryStrings)
         {
-            Guard.Argument(queryStrings, nameof(queryStrings)).Require(!queryStrings.IsDefaultOrEmpty, _ => "queryStrings is empty.");
             Guard.Argument(recordConverter, nameof(recordConverter)).NotNull();
-
-            this.QueryStrings = queryStrings;
             this.RecordConverter = recordConverter;
         }
 
