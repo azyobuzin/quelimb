@@ -18,5 +18,17 @@ namespace Quelimb.SqlGenerators
             destination.Replace("\"", "\"\"", startIndex, destination.Length - startIndex);
             destination.Append('"');
         }
+
+        /// <param name="parameterIndex">An index of the parameter in the query.</param>
+        /// <param name="queryDestination">
+        /// The destination <see cref="StringBuilder"/>.
+        /// This method appends a placeholder representing the parameter to <paramref name="queryDestination"/>.
+        /// </param>
+        /// <returns>The parameter name which will be set to <see cref="System.Data.IDataParameter.ParameterName">.</returns>
+        public virtual string AddParameterToQuery(int parameterIndex, StringBuilder queryDestination)
+        {
+            queryDestination.Append('?');
+            return string.Empty;
+        }
     }
 }

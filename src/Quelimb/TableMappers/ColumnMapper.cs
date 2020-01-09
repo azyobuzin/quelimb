@@ -39,5 +39,10 @@ namespace Quelimb.TableMappers
                     throw new InvalidOperationException("Invalid MemberInfo.");
             }
         }
+
+        public override string ToString()
+        {
+            return $"ColumnMapper({this.ColumnName}, {this.MemberInfo})";
+        }
     }
 }

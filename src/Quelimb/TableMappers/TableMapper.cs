@@ -16,5 +16,10 @@ namespace Quelimb.TableMappers
         public abstract string? GetColumnNameByMemberInfo(MemberInfo member);
 
         public abstract object? CreateObjectFromRecord(IDataRecord record, int columnIndex, ValueConverter converter);
+
+        public override string ToString()
+        {
+            return "TableMapper(" + this.TableName + ")";
+        }
     }
 }

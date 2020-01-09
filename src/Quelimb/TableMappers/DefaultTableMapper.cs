@@ -52,5 +52,10 @@ namespace Quelimb.TableMappers
 
             return target;
         }
+
+        public override string ToString()
+        {
+            return $"DefaultTableMapper({this.TableName}, {this.Type})";
+        }
     }
 }
