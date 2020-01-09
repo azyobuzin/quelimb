@@ -76,5 +76,22 @@ namespace Quelimb.Tests
                 QueryAnalyzer.SetQueryToDbCommand(QueryAnalyzer.ExtractFormattableString(expr, environment), command, environment);
             }
         }
+
+        [Fact]
+        public void NoArgumentQuery()
+        {
+            var command = new SqliteCommand();
+            var environment = QueryEnvironment.Default;
+
+            FormattableString plain = $"SELECT 1";
+            QueryAnalyzer.SetQueryToDbCommand(plain, command, environment);
+            command.CommandText.Is("SELECT 1");
+            command.Parameters.Count.Is(0);
+
+            FormattableString brackets = $"SELECT '{{foo}}{{bar'";
+            QueryAnalyzer.SetQueryToDbCommand(brackets, command, environment);
+            command.CommandText.Is("SELECT '{foo}{bar'", "Unescape brackets");
+            command.Parameters.Count.Is(0);
+        }
     }
 }
