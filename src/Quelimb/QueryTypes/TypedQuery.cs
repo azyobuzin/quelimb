@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Immutable;
 using System.Data;
 using Dawn;
 
@@ -9,8 +8,10 @@ namespace Quelimb
     {
         protected Func<IDataRecord, TRecord> RecordConverter { get; }
 
-        public TypedQuery(ImmutableArray<StringOrFormattableString> queryStrings, Func<IDataRecord, TRecord> recordConverter)
-            : base(queryStrings)
+        protected internal TypedQuery(
+            QueryEnvironment environment, Action<IDbCommand> setupCommand,
+            Func<IDataRecord, TRecord> recordConverter)
+            : base(environment, setupCommand)
         {
             Guard.Argument(recordConverter, nameof(recordConverter)).NotNull();
             this.RecordConverter = recordConverter;
@@ -19,7 +20,15 @@ namespace Quelimb
         public TypedQuery<T> Map<T>(Func<TRecord, T> mapper)
         {
             var recordConverter = this.RecordConverter;
-            return new TypedQuery<T>(this.QueryStrings, x => mapper(recordConverter(x)));
+            return new TypedQuery<T>(
+                this.Environment, this.SetupCommandAction,
+                x => mapper(recordConverter(x)));
+        }
+
+        public TRecord ReadRecord(IDataRecord record)
+        {
+            Guard.Argument(record, nameof(record)).NotNull();
+            return this.RecordConverter(record);
         }
     }
 }

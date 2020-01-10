@@ -21,14 +21,14 @@ namespace Quelimb.Tests
 
             var arguments = fs.GetArguments();
             var arg0 = arguments[0]!.IsInstanceOf<QueryAnalyzer.TableReference>("arguments[0] is a TableReference");
-            arg0.TableMapper.TableName.Is(nameof(Table1));
+            arg0.TableMapper.GetTableName().Is(nameof(Table1));
             arg0.EscapedAlias.Is("\"T1\"");
 
             var arg1 = arguments[1]!.IsInstanceOf<QueryAnalyzer.TableReference>("arguments[1] is a TableReference");
             arg1.IsSameReferenceAs(arg0, "arguments[0] == arguments[1]");
 
             var arg2 = arguments[2]!.IsInstanceOf<QueryAnalyzer.TableReference>("arguments[2] is a TableReference");
-            arg2.TableMapper.TableName.Is("TableTwo");
+            arg2.TableMapper.GetTableName().Is("TableTwo");
             arg2.EscapedAlias.IsNull("Table2 has no alias");
 
             var arg3 = arguments[3]!.IsInstanceOf<QueryAnalyzer.ColumnReference>("arguments[3] is a ColumnReference");
@@ -48,9 +48,11 @@ namespace Quelimb.Tests
             var command = new SqliteCommand();
             QueryAnalyzer.SetQueryToDbCommand(fs, command, environment);
 
-            command.CommandText.Is(@"SELECT ""T1"".""Id"", ""T1"".""FooColumn"", ""T1"".""IntField"" FROM ""Table1"" AS ""T1"", ""TableTwo"" WHERE ""T1"".""Id"" = ""TableTwo"".""Id"" AND ""T1"".""FooColumn"" = ?");
+            command.CommandText.Is(@"SELECT ""T1"".""Id"", ""T1"".""FooColumn"", ""T1"".""IntField"" FROM ""Table1"" AS ""T1"", ""TableTwo"" WHERE ""T1"".""Id"" = ""TableTwo"".""Id"" AND ""T1"".""FooColumn"" = @QuelimbParam0");
             command.Parameters.Count.Is(1, "The command has 1 parameter");
-            command.Parameters[0].Value.Is(" A", "10 in hexadecimal and padding");
+            var param0 = command.Parameters[0];
+            param0.ParameterName.Is("@QuelimbParam0");
+            param0.Value.Is(" A", "10 in hexadecimal and padding");
         }
 
         [Fact]

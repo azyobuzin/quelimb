@@ -6,20 +6,22 @@ namespace Quelimb.TableMappers
 {
     public abstract class TableMapper
     {
-        public abstract string TableName { get; }
+        public abstract string GetTableName();
 
         /// <summary>
-        /// Gets columns used by <c>T.*</c> query.
+        /// Counts the columns used by <c>COLUMNS</c> format.
+        /// </summary>
+        public abstract int GetColumnCountForSelect();
+
+        /// <summary>
+        /// Gets the columns used by <c>COLUMNS</c> format.
         /// </summary>
         public abstract IEnumerable<string> GetColumnsNamesForSelect();
 
         public abstract string? GetColumnNameByMemberInfo(MemberInfo member);
 
-        public abstract object? CreateObjectFromRecord(IDataRecord record, int columnIndex, ValueConverter converter);
+        public abstract object? CreateObjectFromOrderedColumns(IDataRecord record, int columnIndex, ValueConverter converter);
 
-        public override string ToString()
-        {
-            return "TableMapper(" + this.TableName + ")";
-        }
+        public abstract object? CreateObjectFromUnorderedColumns(IDataRecord record, ValueConverter converter);
     }
 }

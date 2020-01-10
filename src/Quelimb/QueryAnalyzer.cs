@@ -69,7 +69,7 @@ namespace Quelimb
                 {
                     var alias = match.Groups[2].Value;
                     if (tableRef.EscapedAlias != null && tableRef.EscapedAlias != alias)
-                        throw new FormatException($"Cannot use alias {alias} for {tableRef.TableMapper.TableName} because you have set {tableRef.EscapedAlias} as the alias.");
+                        throw new FormatException($"Cannot use alias {alias} for {tableRef.TableMapper} because you have set {tableRef.EscapedAlias} as the alias.");
                     tableRef.EscapedAlias = alias;
                 }
             }
@@ -141,6 +141,8 @@ namespace Quelimb
                                         break;
 
                                     default:
+                                        // TODO: Support IEnumerable
+
                                         if (formatItemMatch.Groups[2].Length > 0)
                                         {
                                             // If format is specified, the argument will become a formatted string.
@@ -220,7 +222,7 @@ namespace Quelimb
             else if (s_tableAliasFormatStringPattern.Match(format) is Match aliasFormatMatch && aliasFormatMatch.Success)
             {
                 // AS alias
-                environment.SqlGenerator.EscapeIdentifier(tableRef.TableMapper.TableName, destination);
+                environment.SqlGenerator.EscapeIdentifier(tableRef.TableMapper.GetTableName(), destination);
                 destination.Append(' ').Append(aliasFormatMatch.Groups[1].Value);
             }
             else
@@ -235,7 +237,7 @@ namespace Quelimb
             {
                 // Cache escaped table name
                 var tableNameSb = environment.StringBuilderPool.Get();
-                environment.SqlGenerator.EscapeIdentifier(tableRef.TableMapper.TableName, tableNameSb);
+                environment.SqlGenerator.EscapeIdentifier(tableRef.TableMapper.GetTableName(), tableNameSb);
                 tableRef.EscapedAlias = tableNameSb.ToString();
                 environment.StringBuilderPool.Return(tableNameSb);
             }
@@ -319,7 +321,8 @@ namespace Quelimb
 
             private Expression ConvertFormattableStringArgument(Expression argument)
             {
-                if (argument.NodeType == ExpressionType.Convert && Equals(argument.Type, typeof(object)))
+                if ((argument.NodeType == ExpressionType.Convert || argument.NodeType == ExpressionType.ConvertChecked)
+                    && Equals(argument.Type, typeof(object)))
                 {
                     var unaryExpr = (UnaryExpression)argument;
                     return unaryExpr.Update(this.ConvertFormattableStringArgument(unaryExpr.Operand));

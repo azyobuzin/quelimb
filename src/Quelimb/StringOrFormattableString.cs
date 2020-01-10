@@ -5,7 +5,7 @@ using static Dawn.Guard;
 namespace Quelimb
 {
     [StructLayout(LayoutKind.Auto)]
-    public readonly struct StringOrFormattableString
+    internal readonly struct StringOrFormattableString
     {
         public string? String { get; }
 

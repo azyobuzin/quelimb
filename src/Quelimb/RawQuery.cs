@@ -1,5 +1,6 @@
 ﻿namespace Quelimb
 {
+    // TODO: This can be struct when we implement Expression to query cache
     public class RawQuery
     {
         public string Content { get; }

@@ -41,14 +41,15 @@ namespace Quelimb.TableMappers
                         Kvf(typeof(uint), (r, c) => checked((uint)r.GetInt64(c))),
                         Kvf(typeof(ulong), (r, c) => Convert.ChangeType(r.GetValue(c), typeof(ulong))),
                         Kvf(typeof(DateTimeOffset), ConvertFromDateTimeOffset),
+                        Kvf(typeof(ValueTuple), (_, __) => ValueTuple.Create()),
                     });
                 }
                 return s_defaultConvertes;
             }
         }
 
-        private static readonly ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, object?>?>>
-            s_nullableConverterCache = new ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, object?>?>>();
+        private static readonly ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>>
+            s_nullableConverterCache = new ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>>();
 
         public override bool CanConvertFrom(Type type, ValueConverter converter)
         {
@@ -69,7 +70,7 @@ namespace Quelimb.TableMappers
 
             var convertFunc = LookupNullableConverterCache(type, converter);
             if (convertFunc == null) return base.ConvertFrom(record, columnIndex, type, converter);
-            return convertFunc(record, columnIndex);
+            return convertFunc(record, columnIndex, converter);
         }
 
         public override bool CanConvertTo(Type type, ValueConverter converter)
@@ -89,17 +90,24 @@ namespace Quelimb.TableMappers
             return new KeyValuePair<Type, Func<IDataRecord, int, object?>>(type, convertFrom);
         }
 
-        private static Func<IDataRecord, int, object?>? LookupNullableConverterCache(Type type, ValueConverter valueConverter)
+        private static Func<IDataRecord, int, ValueConverter, object?>? LookupNullableConverterCache(Type type, ValueConverter valueConverter)
         {
-            return s_nullableConverterCache.GetOrCreateValue(valueConverter).GetOrAdd(
-                type,
-                key =>
+            var cacheByConverter = s_nullableConverterCache.GetOrCreateValue(valueConverter);
+
+            if (!cacheByConverter.TryGetValue(type, out var conv))
+            {
+                // Create converter for Nullable<T>
+                Type? underlyingType = Nullable.GetUnderlyingType(type);
+                if (underlyingType != null && valueConverter.CanConvertFrom(underlyingType))
                 {
-                    // Create converter for Nullable<T>
-                    Type? underlyingType = Nullable.GetUnderlyingType(key);
-                    if (underlyingType == null || !valueConverter.CanConvertFrom(underlyingType)) return null;
-                    return (r, c) => r.IsDBNull(c) ? null : valueConverter.ConvertFrom(r, c, underlyingType);
-                });
+                    // We cannot capture `valueConverter` because of memory leak
+                    conv = (r, c, v) => r.IsDBNull(c) ? null : v.ConvertFrom(r, c, underlyingType);
+                }
+
+                cacheByConverter.TryAdd(type, conv);
+            }
+
+            return conv;
         }
 
         private static object ConvertFromDateTimeOffset(IDataRecord record, int columnIndex)

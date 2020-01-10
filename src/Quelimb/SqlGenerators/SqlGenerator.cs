@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using Dawn;
 
 namespace Quelimb.SqlGenerators
@@ -27,8 +28,9 @@ namespace Quelimb.SqlGenerators
         /// <returns>The parameter name which will be set to <see cref="System.Data.IDataParameter.ParameterName">.</returns>
         public virtual string AddParameterToQuery(int parameterIndex, StringBuilder queryDestination)
         {
-            queryDestination.Append('?');
-            return string.Empty;
+            var parameterName = "@QuelimbParam" + parameterIndex.ToString(CultureInfo.InvariantCulture);
+            queryDestination.Append(parameterName);
+            return parameterName;
         }
     }
 }

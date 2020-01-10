@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Linq.Expressions;
 using Dawn;
 
@@ -13,22 +14,31 @@ namespace Quelimb
             this.Environment = environment;
         }
 
-        public UntypedQuery QueryS(string query)
+        public UntypedQuery Query(string query)
         {
             Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
-            return new UntypedQuery(new StringOrFormattableString(query));
+
+            Action<IDbCommand> setup = cmd => cmd.CommandText = query;
+            return new UntypedQuery(this.Environment, setup);
         }
 
-        public UntypedQuery QueryF(FormattableString query)
+        public UntypedQuery Query(Expression<Func<FormattableString>> queryFactory)
         {
-            Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
-            return new UntypedQuery(new StringOrFormattableString(query));
+            return this.QueryCore(queryFactory);
         }
 
-        public UntypedQuery QueryF<T1>(Expression<Func<T1, FormattableString>> queryFactory)
+        public UntypedQuery Query<T1>(Expression<Func<T1, FormattableString>> queryFactory)
+        {
+            return this.QueryCore(queryFactory);
+        }
+
+        private UntypedQuery QueryCore(LambdaExpression queryFactory)
         {
             Guard.Argument(queryFactory, nameof(queryFactory)).NotNull();
-            throw new NotImplementedException();
+
+            var fs = QueryAnalyzer.ExtractFormattableString(queryFactory, this.Environment);
+            Action<IDbCommand> setup = cmd => QueryAnalyzer.SetQueryToDbCommand(fs, cmd, this.Environment);
+            return new UntypedQuery(this.Environment, setup);
         }
     }
 }

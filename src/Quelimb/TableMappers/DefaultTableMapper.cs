@@ -9,7 +9,7 @@ namespace Quelimb.TableMappers
 {
     public class DefaultTableMapper : TableMapper
     {
-        public override string TableName { get; }
+        protected string TableName { get; }
         protected Type Type { get; }
         protected ImmutableArray<ColumnMapper> Columns { get; }
         private ImmutableArray<string> _columnNames;
@@ -20,6 +20,13 @@ namespace Quelimb.TableMappers
             this.TableName = tableName;
             this.Type = type;
             this.Columns = columns?.ToImmutableArray() ?? ImmutableArray<ColumnMapper>.Empty;
+        }
+
+        public override string GetTableName() => this.TableName;
+
+        public override int GetColumnCountForSelect()
+        {
+            return this.Columns.Length;
         }
 
         public override IEnumerable<string> GetColumnsNamesForSelect()
@@ -40,8 +47,9 @@ namespace Quelimb.TableMappers
                 ? columnName : null;
         }
 
-        public override object CreateObjectFromRecord(IDataRecord record, int columnIndex, ValueConverter converter)
+        public override object CreateObjectFromOrderedColumns(IDataRecord record, int columnIndex, ValueConverter converter)
         {
+            // TODO: Return null if required columns are null
             var target = Activator.CreateInstance(this.Type);
 
             foreach (var column in this.Columns)
@@ -51,6 +59,12 @@ namespace Quelimb.TableMappers
             }
 
             return target;
+        }
+
+        public override object? CreateObjectFromUnorderedColumns(IDataRecord record, ValueConverter converter)
+        {
+            // TODO
+            throw new NotImplementedException();
         }
 
         public override string ToString()

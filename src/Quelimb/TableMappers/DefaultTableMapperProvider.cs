@@ -12,8 +12,8 @@ namespace Quelimb.TableMappers
         private static TableMapperProvider? s_default;
         public static TableMapperProvider Default => s_default ?? (s_default = new DefaultTableMapperProvider());
 
-        private readonly ConcurrentDictionary<Type, TableMapper> _cache = new ConcurrentDictionary<Type, TableMapper>();
-        private readonly Func<Type, TableMapper> _factory;
+        private readonly ConcurrentDictionary<Type, TableMapper?> _cache = new ConcurrentDictionary<Type, TableMapper?>();
+        private readonly Func<Type, TableMapper?> _factory;
 
         public DefaultTableMapperProvider()
         {
@@ -26,9 +26,16 @@ namespace Quelimb.TableMappers
             return this._cache.GetOrAdd(type, this._factory);
         }
 
-        protected virtual TableMapper CreateTableMapper(Type type)
+        protected virtual TableMapper? CreateTableMapper(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Guard.Argument(type, nameof(type)).NotNull()
+                .Require(!type.IsGenericType || type.IsConstructedGenericType, _ => "type is an open generic type.");
+
+            if (Type.GetTypeCode(type) != TypeCode.Object)
+                return null;
+
+            if (TupleTableMapper.IsTupleType(type))
+                return new TupleTableMapper(type, this);
 
             TableAttribute? tableAttribute = type.GetCustomAttribute<TableAttribute>();
             var tableName = tableAttribute?.Name ?? type.Name;
