@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
 
 namespace Quelimb.CommandExecutors
 {
@@ -14,8 +13,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual int ExecuteNonQuery(UntypedQuery query, DbConnection connection, DbTransaction? transaction)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
 
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -25,8 +24,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual async Task<int> ExecuteNonQueryAsync(UntypedQuery query, DbConnection connection, DbTransaction? transaction, CancellationToken cancellationToken)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
 
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -36,8 +35,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual object ExecuteScalar(UntypedQuery query, DbConnection connection, DbTransaction? transaction)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
 
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -47,8 +46,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual async Task<object?> ExecuteScalarAsync(UntypedQuery query, DbConnection connection, DbTransaction? transaction, CancellationToken cancellationToken)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
 
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -58,8 +57,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual IEnumerable<TRecord> ExecuteQuery<TRecord>(TypedQuery<TRecord> query, DbConnection connection, DbTransaction? transaction)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
             return this.ExecuteQueryCore(query, connection, transaction);
         }
 
@@ -78,8 +77,8 @@ namespace Quelimb.CommandExecutors
 
         public virtual IAsyncEnumerable<TRecord> ExecuteQueryAsync<TRecord>(TypedQuery<TRecord> query, DbConnection connection, DbTransaction? transaction)
         {
-            Guard.Argument(query, nameof(query)).NotNull();
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(query, nameof(query));
+            Check.NotNull(connection, nameof(connection));
             return new QueryAsyncIterator<TRecord>(query, connection, transaction, default, false);
         }
 

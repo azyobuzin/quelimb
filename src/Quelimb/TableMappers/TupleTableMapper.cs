@@ -5,7 +5,6 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -35,8 +34,10 @@ namespace Quelimb.TableMappers
 
         public TupleTableMapper(Type tupleType, TableMapperProvider tableMapperProvider)
         {
-            Guard.Argument(tupleType, nameof(tupleType)).NotNull()
-                .Require(IsTupleType(tupleType), _ => "tupleType must be a Tuple or ValueTuple.");
+            Check.NotNull(tupleType, nameof(tupleType));
+
+            if (!IsTupleType(tupleType))
+                throw new ArgumentException("tupleType must be a Tuple or ValueTuple.", nameof(tupleType));
 
             this._tupleType = tupleType;
             this._typeArguments = tupleType.GetGenericArguments();
@@ -85,7 +86,7 @@ namespace Quelimb.TableMappers
 
         internal static bool IsTupleType(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(type, nameof(type));
 
             // ValueTuple (no generic parameter) is not supported
             if (!type.IsConstructedGenericType) return false;

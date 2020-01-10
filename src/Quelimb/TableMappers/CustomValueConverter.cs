@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Data;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -12,13 +11,13 @@ namespace Quelimb.TableMappers
 
         public virtual object? ConvertFrom(IDataRecord record, int columnIndex, Type type, ValueConverter converter)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(type, nameof(type));
             throw new ArgumentException($"Cannot convert from {type}.", nameof(type));
         }
 
         public virtual void ConvertTo(object? value, IDbDataParameter destination, ValueConverter converter)
         {
-            Guard.Argument(destination, nameof(destination)).NotNull();
+            Check.NotNull(destination, nameof(destination));
 
             if (value is null)
             {

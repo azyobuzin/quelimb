@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Data;
 using System.Linq.Expressions;
-using Dawn;
 
 namespace Quelimb
 {
@@ -19,7 +18,7 @@ namespace Quelimb
 
         public UntypedQuery Query(string query)
         {
-            Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
+            Check.NotNullOrEmpty(query, nameof(query));
 
             Action<IDbCommand> setup = cmd => cmd.CommandText = query;
             return new UntypedQuery(this.Environment, setup);
@@ -112,7 +111,7 @@ namespace Quelimb
 
         private UntypedQuery QueryCore(LambdaExpression queryFactory)
         {
-            Guard.Argument(queryFactory, nameof(queryFactory)).NotNull();
+            Check.NotNull(queryFactory, nameof(queryFactory));
 
             var fs = QueryAnalyzer.ExtractFormattableString(queryFactory, this.Environment);
             Action<IDbCommand> setup = cmd => QueryAnalyzer.SetQueryToDbCommand(fs, cmd, this.Environment);

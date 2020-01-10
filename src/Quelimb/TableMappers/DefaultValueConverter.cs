@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -27,20 +26,20 @@ namespace Quelimb.TableMappers
 
         public override bool CanConvertFrom(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(type, nameof(type));
             return this.LookupCacheToConvertFrom(type) != null;
         }
 
         public override bool CanConvertTo(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(type, nameof(type));
             return this.LookupCacheToConvertTo(type) != null;
         }
 
         public override object? ConvertFrom(IDataRecord record, int columnIndex, Type type)
         {
-            Guard.Argument(record, nameof(record)).NotNull();
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(record, nameof(record));
+            Check.NotNull(type, nameof(type));
 
             var converter = this.LookupCacheToConvertFrom(type);
             if (converter == null) throw new ArgumentException($"Cannot convert from {type}.", nameof(type));

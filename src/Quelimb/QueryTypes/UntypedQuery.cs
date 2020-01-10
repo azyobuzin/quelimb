@@ -5,7 +5,6 @@ using System.Data.Common;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
 using Quelimb.TableMappers;
 
 namespace Quelimb
@@ -17,16 +16,13 @@ namespace Quelimb
 
         protected internal UntypedQuery(QueryEnvironment environment, Action<IDbCommand> setupCommand)
         {
-            Guard.Argument(environment, nameof(environment)).NotNull();
-            Guard.Argument(setupCommand, nameof(setupCommand)).NotNull();
-
-            this.Environment = environment;
-            this.SetupCommandAction = setupCommand;
+            this.Environment = environment ?? throw new ArgumentNullException(nameof(environment));
+            this.SetupCommandAction = setupCommand ?? throw new ArgumentNullException(nameof(setupCommand));
         }
 
         public void SetupCommand(IDbCommand command)
         {
-            Guard.Argument(command, nameof(command)).NotNull();
+            Check.NotNull(command, nameof(command));
             this.SetupCommandAction(command);
         }
 
@@ -129,7 +125,7 @@ namespace Quelimb
         private TypedQuery<TResult> MapCore<TDelegate, TResult>(TDelegate mapper)
             where TDelegate : Delegate
         {
-            Guard.Argument(mapper, nameof(mapper)).NotNull();
+            Check.NotNull(mapper, nameof(mapper));
 
             var recordConverter = this.GetOrCreateRecordConverterFactory<TDelegate, TResult>()(mapper);
             return new TypedQuery<TResult>(this.Environment, this.SetupCommandAction, recordConverter);
@@ -217,25 +213,25 @@ namespace Quelimb
 
         public int ExecuteNonQuery(DbConnection connection, DbTransaction? transaction = null)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteNonQuery(this, connection, transaction);
         }
 
         public Task<int> ExecuteNonQueryAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteNonQueryAsync(this, connection, transaction, cancellationToken);
         }
 
         public object ExecuteScalar(DbConnection connection, DbTransaction? transaction = null)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteScalar(this, connection, transaction);
         }
 
         public Task<object?> ExecuteScalarAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteScalarAsync(this, connection, transaction, cancellationToken);
         }
     }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Data;
 using System.Reflection;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -12,10 +11,10 @@ namespace Quelimb.TableMappers
 
         public ColumnMapper(string columnName, MemberInfo memberInfo)
         {
-            Guard.Argument(columnName, nameof(columnName)).NotNull();
-            Guard.Argument(memberInfo, nameof(memberInfo)).NotNull()
-                .Require(memberInfo is PropertyInfo || memberInfo is FieldInfo,
-                    _ => "memberInfo is required to be a PropertyInfo or a FieldInfo.");
+            Check.NotNull(columnName, nameof(columnName));
+
+            if (!(memberInfo is PropertyInfo || memberInfo is FieldInfo))
+                throw new ArgumentException("memberInfo is required to be a PropertyInfo or a FieldInfo.", nameof(memberInfo));
 
             this.ColumnName = columnName;
             this.MemberInfo = memberInfo;

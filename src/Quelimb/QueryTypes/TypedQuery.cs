@@ -4,7 +4,6 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
 
 namespace Quelimb
 {
@@ -17,8 +16,7 @@ namespace Quelimb
             Func<IDataRecord, TRecord> recordConverter)
             : base(environment, setupCommand)
         {
-            Guard.Argument(recordConverter, nameof(recordConverter)).NotNull();
-            this.RecordConverter = recordConverter;
+            this.RecordConverter = recordConverter ?? throw new ArgumentNullException(nameof(recordConverter));
         }
 
         public TypedQuery<T> Map<T>(Func<TRecord, T> mapper)
@@ -31,19 +29,19 @@ namespace Quelimb
 
         public TRecord ReadRecord(IDataRecord record)
         {
-            Guard.Argument(record, nameof(record)).NotNull();
+            Check.NotNull(record, nameof(record));
             return this.RecordConverter(record);
         }
 
         public IEnumerable<TRecord> ExecuteQuery(DbConnection connection, DbTransaction? transaction = null)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteQuery(this, connection, transaction);
         }
 
         public IAsyncEnumerable<TRecord> ExecuteQueryAsync(DbConnection connection, DbTransaction? transaction = null)
         {
-            Guard.Argument(connection, nameof(connection)).NotNull();
+            Check.NotNull(connection, nameof(connection));
             return this.Environment.CommandExecutor.ExecuteQueryAsync(this, connection, transaction);
         }
 

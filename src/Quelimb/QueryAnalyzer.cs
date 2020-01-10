@@ -8,7 +8,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using Dawn;
 using Microsoft.Extensions.ObjectPool;
 using Quelimb.TableMappers;
 
@@ -32,8 +31,8 @@ namespace Quelimb
 
         internal static FormattableString ExtractFormattableString(LambdaExpression lambda, QueryEnvironment environment)
         {
-            Guard.Argument(lambda, nameof(lambda)).NotNull();
-            Guard.Argument(environment, nameof(environment)).NotNull();
+            Check.NotNull(lambda, nameof(lambda));
+            Check.NotNull(environment, nameof(environment));
 
             var tableDictionary = new Dictionary<ParameterExpression, TableReference>();
             foreach (var parameter in lambda.Parameters)
@@ -77,9 +76,9 @@ namespace Quelimb
 
         internal static void SetQueryToDbCommand(FormattableString query, IDbCommand command, QueryEnvironment environment)
         {
-            Guard.Argument(query, nameof(query)).NotNull().NotEmpty();
-            Guard.Argument(command, nameof(command)).NotNull();
-            Guard.Argument(environment, nameof(environment)).NotNull();
+            Check.NotNullOrEmpty(query, nameof(query));
+            Check.NotNull(command, nameof(command));
+            Check.NotNull(environment, nameof(environment));
 
             var formatStr = query.Format;
 

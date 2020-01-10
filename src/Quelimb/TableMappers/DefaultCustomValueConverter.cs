@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
 using System.Runtime.CompilerServices;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -53,17 +52,17 @@ namespace Quelimb.TableMappers
 
         public override bool CanConvertFrom(Type type, ValueConverter converter)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
-            Guard.Argument(converter, nameof(converter)).NotNull();
+            Check.NotNull(type, nameof(type));
+            Check.NotNull(converter, nameof(converter));
 
             return DefaultConverters.ContainsKey(type) || LookupConverterCache(type, converter) != null;
         }
 
         public override object? ConvertFrom(IDataRecord record, int columnIndex, Type type, ValueConverter converter)
         {
-            Guard.Argument(record, nameof(record)).NotNull();
-            Guard.Argument(type, nameof(type)).NotNull();
-            Guard.Argument(converter, nameof(converter)).NotNull();
+            Check.NotNull(record, nameof(record));
+            Check.NotNull(type, nameof(type));
+            Check.NotNull(converter, nameof(converter));
 
             if (DefaultConverters.TryGetValue(type, out var defaultConverter))
                 return defaultConverter(record, columnIndex);
@@ -80,7 +79,7 @@ namespace Quelimb.TableMappers
 
         public override void ConvertTo(object? value, IDbDataParameter destination, ValueConverter converter)
         {
-            Guard.Argument(destination, nameof(destination)).NotNull();
+            Check.NotNull(destination, nameof(destination));
 
             destination.Value = value;
         }

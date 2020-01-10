@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Text;
-using Dawn;
 
 namespace Quelimb.SqlGenerators
 {
@@ -10,8 +9,8 @@ namespace Quelimb.SqlGenerators
 
         public virtual void EscapeIdentifier(string identifier, StringBuilder destination)
         {
-            Guard.Argument(identifier, nameof(identifier)).NotNull();
-            Guard.Argument(destination, nameof(destination)).NotNull();
+            Check.NotNull(identifier, nameof(identifier));
+            Check.NotNull(destination, nameof(destination));
 
             destination.Append('"');
             var startIndex = destination.Length;

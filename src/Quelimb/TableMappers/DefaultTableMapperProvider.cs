@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
-using Dawn;
 
 namespace Quelimb.TableMappers
 {
@@ -22,14 +21,16 @@ namespace Quelimb.TableMappers
 
         public override TableMapper? GetTableByType(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull();
+            Check.NotNull(type, nameof(type));
             return this._cache.GetOrAdd(type, this._factory);
         }
 
         protected virtual TableMapper? CreateTableMapper(Type type)
         {
-            Guard.Argument(type, nameof(type)).NotNull()
-                .Require(!type.IsGenericType || type.IsConstructedGenericType, _ => "type is an open generic type.");
+            Check.NotNull(type, nameof(type));
+
+            if (type.IsGenericType && !type.IsConstructedGenericType)
+                throw new ArgumentException("type is an open generic type.", nameof(type));
 
             if (Type.GetTypeCode(type) != TypeCode.Object)
                 return null;
