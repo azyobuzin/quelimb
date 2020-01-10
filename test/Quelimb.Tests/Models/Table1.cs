@@ -12,7 +12,7 @@ namespace Quelimb.Tests.Models
         [Column("FooColumn")]
         public string ColumnName { get; set; }
 
-        public int IntField;
+        public int? NullableField;
 
         private int PrivateField;
 

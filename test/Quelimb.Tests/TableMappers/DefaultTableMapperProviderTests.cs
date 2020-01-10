@@ -23,7 +23,7 @@ namespace Quelimb.Tests.TableMappers
                 {
                     nameof(Table1.Id),
                     "FooColumn",
-                    nameof(Table1.IntField),
+                    nameof(Table1.NullableField),
                     // PrivateField is excluded
                     // Excluded is excluded
                 })

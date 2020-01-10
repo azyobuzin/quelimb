@@ -9,12 +9,12 @@ namespace Quelimb.TableMappers
         public abstract string GetTableName();
 
         /// <summary>
-        /// Counts the columns used by <c>COLUMNS</c> format.
+        /// Counts the columns used by <c>*</c> format.
         /// </summary>
         public abstract int GetColumnCountForSelect();
 
         /// <summary>
-        /// Gets the columns used by <c>COLUMNS</c> format.
+        /// Gets the columns used by <c>*</c> format.
         /// </summary>
         public abstract IEnumerable<string> GetColumnsNamesForSelect();
 

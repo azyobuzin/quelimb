@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
+using Quelimb.TableMappers;
 
 namespace Quelimb
 {
@@ -162,7 +163,7 @@ namespace Quelimb
 
             var mapperParam = Expression.Parameter(delegateType, "mapper");
             var recordParam = Expression.Parameter(typeof(IDataRecord), "record");
-            var valueConverter = Expression.Constant(this.Environment.ValueConverter);
+            var valueConverter = Expression.Constant(this.Environment.ValueConverter, typeof(ValueConverter));
 
             var argExprs = new List<Expression>(parameterCount);
             var columnIndex = 0;
@@ -179,7 +180,7 @@ namespace Quelimb
                             ReflectionUtils.ValueConverterConvertFromMethod,
                             recordParam,
                             Expression.Constant(columnIndex),
-                            Expression.Constant(argType)),
+                            Expression.Constant(argType, typeof(Type))),
                         argType));
                     columnIndex++;
                 }
@@ -191,11 +192,11 @@ namespace Quelimb
 
                     argExprs.Add(Expression.Convert(
                         Expression.Call(
-                            Expression.Constant(tableMapper),
+                            Expression.Constant(tableMapper, typeof(TableMapper)),
                             ReflectionUtils.TableMapperCreateObjectFromOrderedColumns,
                             recordParam,
                             Expression.Constant(columnIndex),
-                            Expression.Constant(argType)),
+                            valueConverter),
                         argType));
 
                     columnIndex += tableMapper.GetColumnCountForSelect();

@@ -13,11 +13,11 @@ namespace Quelimb.Tests
         public void BasicExtract()
         {
             Expression<Func<Table1, Table2, FormattableString>> expr =
-                (t1, t2) => $"SELECT {t1:COLUMNS} FROM {t1:AS \"T1\"}, {t2} WHERE {t1.Id} = {t2.Id} AND {t1.ColumnName} = {10,2:X}";
+                (t1, t2) => $"SELECT {t1:*} FROM {t1:AS \"T1\"}, {t2} WHERE {t1.Id} = {t2.Id} AND {t1.ColumnName:C} = {10,2:X}";
 
             var environment = QueryEnvironment.Default;
             var fs = QueryAnalyzer.ExtractFormattableString(expr, environment);
-            fs.Format.Is("SELECT {0:COLUMNS} FROM {1:AS \"T1\"}, {2} WHERE {3} = {4} AND {5} = {6,2:X}");
+            fs.Format.Is("SELECT {0:*} FROM {1:AS \"T1\"}, {2} WHERE {3} = {4} AND {5:C} = {6,2:X}");
 
             var arguments = fs.GetArguments();
             var arg0 = arguments[0]!.IsInstanceOf<QueryAnalyzer.TableReference>("arguments[0] is a TableReference");
@@ -48,7 +48,7 @@ namespace Quelimb.Tests
             var command = new SqliteCommand();
             QueryAnalyzer.SetQueryToDbCommand(fs, command, environment);
 
-            command.CommandText.Is(@"SELECT ""T1"".""Id"", ""T1"".""FooColumn"", ""T1"".""IntField"" FROM ""Table1"" AS ""T1"", ""TableTwo"" WHERE ""T1"".""Id"" = ""TableTwo"".""Id"" AND ""T1"".""FooColumn"" = @QuelimbParam0");
+            command.CommandText.Is(@"SELECT ""T1"".""Id"", ""T1"".""FooColumn"", ""T1"".""NullableField"" FROM ""Table1"" AS ""T1"", ""TableTwo"" WHERE ""T1"".""Id"" = ""TableTwo"".""Id"" AND ""FooColumn"" = @QuelimbParam0");
             command.Parameters.Count.Is(1, "The command has 1 parameter");
             var param0 = command.Parameters[0];
             param0.ParameterName.Is("@QuelimbParam0");

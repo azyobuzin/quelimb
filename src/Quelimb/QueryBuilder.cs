@@ -7,6 +7,9 @@ namespace Quelimb
 {
     public class QueryBuilder
     {
+        private static QueryBuilder? s_default;
+        public static QueryBuilder Default => s_default ?? (s_default = new QueryBuilder(QueryEnvironment.Default));
+
         protected internal QueryEnvironment Environment { get; }
 
         public QueryBuilder(QueryEnvironment environment)

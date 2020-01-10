@@ -106,7 +106,7 @@ namespace Quelimb.TableMappers
                     valueConverter.CanConvertFrom(nullableUnderlyingType))
                 {
                     // Create converter for Nullable<T>.
-                    // We cannot capture `valueConverter` because of memory leak.
+                    // We must not make the lambda capture `valueConverter` because of memory leak.
                     conv = (r, c, v) => r.IsDBNull(c) ? null : v.ConvertFrom(r, c, nullableUnderlyingType);
                 }
 

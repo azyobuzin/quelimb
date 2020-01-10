@@ -129,11 +129,9 @@ namespace Quelimb
                                         break;
 
                                     case ColumnReference columnRef:
-                                        if (formatItemMatch.Groups[2].Length > 0)
-                                            throw new FormatException("Cannot specify alignment or format string to a column reference.");
-
-                                        sb.Append(GetEscapedTableNameOrAlias(columnRef.Table, environment)).Append('.');
-                                        environment.SqlGenerator.EscapeIdentifier(columnRef.ColumnName, sb);
+                                        if (formatItemMatch.Groups[3].Success)
+                                            throw new FormatException("Cannot specify alignment to a column reference.");
+                                        WriteColumnReference(columnRef, formatItemMatch.Groups[4].Value, sb, environment);
                                         break;
 
                                     case RawQuery rawQuery:
@@ -205,7 +203,7 @@ namespace Quelimb
                 // Write table name or alias
                 destination.Append(GetEscapedTableNameOrAlias(tableRef, environment));
             }
-            else if (string.Equals(format, "COLUMNS", StringComparison.OrdinalIgnoreCase))
+            else if (format == "*")
             {
                 // Write all columns of the table
                 var alias = GetEscapedTableNameOrAlias(tableRef, environment);
@@ -229,6 +227,26 @@ namespace Quelimb
             {
                 throw new FormatException("Invalid format for a table reference: " + format);
             }
+        }
+
+        private static void WriteColumnReference(ColumnReference columnRef, string format, StringBuilder destination, QueryEnvironment environment)
+        {
+            var writeTable = true;
+
+            if (!string.IsNullOrEmpty(format))
+            {
+                writeTable = format switch
+                {
+                    "T" => true,
+                    "C" => false,
+                    _ => throw new FormatException("Invalid format for a column reference: " + format),
+                };
+            }
+
+            if (writeTable)
+                destination.Append(GetEscapedTableNameOrAlias(columnRef.Table, environment)).Append('.');
+
+            environment.SqlGenerator.EscapeIdentifier(columnRef.ColumnName, destination);
         }
 
         private static string GetEscapedTableNameOrAlias(TableReference tableRef, QueryEnvironment environment)
