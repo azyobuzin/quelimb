@@ -63,8 +63,24 @@ namespace Quelimb.TableMappers
 
         public override object? CreateObjectFromUnorderedColumns(IDataRecord record, ValueConverter converter)
         {
-            // TODO
-            throw new NotImplementedException();
+            var fieldCount = record.FieldCount;
+            var fieldNameDic = new Dictionary<string, int>(fieldCount);
+            for (var i = 0; i < fieldCount; i++)
+            {
+                fieldNameDic[record.GetName(i)] = i;
+            }
+
+            var target = Activator.CreateInstance(this.Type);
+
+            foreach (var column in this.Columns)
+            {
+                if (fieldNameDic.TryGetValue(column.ColumnName, out var columnIndex))
+                {
+                    column.SetValue(target, record, columnIndex, converter);
+                }
+            }
+
+            return target;
         }
 
         public override string ToString()

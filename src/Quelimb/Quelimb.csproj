@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591;$(NoWarn)</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -9,6 +11,10 @@
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="[2,4)" />
     <PackageReference Include="System.Collections.Immutable" Version="1.4.0" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

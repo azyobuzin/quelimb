@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 using Dawn;
 
 namespace Quelimb
@@ -29,6 +33,98 @@ namespace Quelimb
         {
             Guard.Argument(record, nameof(record)).NotNull();
             return this.RecordConverter(record);
+        }
+
+        public IEnumerable<TRecord> ExecuteQuery(DbConnection connection, DbTransaction? transaction = null)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteQuery(this, connection, transaction);
+        }
+
+        public IAsyncEnumerable<TRecord> ExecuteQueryAsync(DbConnection connection, DbTransaction? transaction = null)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteQueryAsync(this, connection, transaction);
+        }
+
+        public async Task<List<TRecord>> ToListAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            var results = new List<TRecord>();
+            await foreach (var record in this.ExecuteQueryAsync(connection, transaction)
+                .WithCancellation(cancellationToken).ConfigureAwait(false))
+            {
+                results.Add(record);
+            }
+            return results;
+        }
+
+        // TODO: Add option describing parameters when no record to First, FirstAsync, Single, SingleAsync
+
+        /// <exception cref="InvalidOperationException">No record is returned.</exception>
+        public async Task<TRecord> FirstAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            var enumerator = this.ExecuteQueryAsync(connection, transaction).GetAsyncEnumerator(cancellationToken);
+            await using (enumerator.ConfigureAwait(false))
+            {
+                return await enumerator.MoveNextAsync().ConfigureAwait(false)
+                    ? enumerator.Current
+                    : throw new InvalidOperationException("No record.");
+            }
+        }
+
+        public async Task<TRecord> FirstOrDefaultAsync(
+            DbConnection connection, DbTransaction? transaction = null,
+            TRecord defaultValue = default, CancellationToken cancellationToken = default)
+        {
+            var enumerator = this.ExecuteQueryAsync(connection, transaction).GetAsyncEnumerator(cancellationToken);
+            await using (enumerator.ConfigureAwait(false))
+            {
+                return await enumerator.MoveNextAsync().ConfigureAwait(false)
+                    ? enumerator.Current
+                    : defaultValue;
+            }
+        }
+
+        /// <exception cref="InvalidOperationException">Zero or more than one records are returned.</exception>
+        public async Task<TRecord> SingleAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            var enumerator = this.ExecuteQueryAsync(connection, transaction).GetAsyncEnumerator(cancellationToken);
+            await using (enumerator.ConfigureAwait(false))
+            {
+                if (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                {
+                    var value = enumerator.Current;
+                    return await enumerator.MoveNextAsync().ConfigureAwait(false)
+                        ? throw new InvalidOperationException("More than one records.")
+                        : value;
+                }
+                else
+                {
+                    throw new InvalidOperationException("No record.");
+                }
+            }
+        }
+
+        /// <exception cref="InvalidOperationException">More than one records are returned.</exception>
+        public async Task<TRecord> SingleOrDefaultAsync(
+            DbConnection connection, DbTransaction? transaction = null,
+            TRecord defaultValue = default, CancellationToken cancellationToken = default)
+        {
+            var enumerator = this.ExecuteQueryAsync(connection, transaction).GetAsyncEnumerator(cancellationToken);
+            await using (enumerator.ConfigureAwait(false))
+            {
+                if (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                {
+                    var value = enumerator.Current;
+                    return await enumerator.MoveNextAsync().ConfigureAwait(false)
+                        ? throw new InvalidOperationException("More than one records.")
+                        : value;
+                }
+                else
+                {
+                    return defaultValue;
+                }
+            }
         }
     }
 }

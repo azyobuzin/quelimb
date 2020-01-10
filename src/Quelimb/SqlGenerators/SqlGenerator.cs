@@ -6,7 +6,7 @@ namespace Quelimb.SqlGenerators
 {
     public class SqlGenerator
     {
-        public static SqlGenerator Instance { get; } = new SqlGenerator();
+        public static SqlGenerator Default { get; } = new SqlGenerator();
 
         public virtual void EscapeIdentifier(string identifier, StringBuilder destination)
         {
@@ -25,7 +25,7 @@ namespace Quelimb.SqlGenerators
         /// The destination <see cref="StringBuilder"/>.
         /// This method appends a placeholder representing the parameter to <paramref name="queryDestination"/>.
         /// </param>
-        /// <returns>The parameter name which will be set to <see cref="System.Data.IDataParameter.ParameterName">.</returns>
+        /// <returns>The parameter name which will be set to <see cref="System.Data.IDataParameter.ParameterName"/>.</returns>
         public virtual string AddParameterToQuery(int parameterIndex, StringBuilder queryDestination)
         {
             var parameterName = "@QuelimbParam" + parameterIndex.ToString(CultureInfo.InvariantCulture);

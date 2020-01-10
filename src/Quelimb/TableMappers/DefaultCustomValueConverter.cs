@@ -49,14 +49,14 @@ namespace Quelimb.TableMappers
         }
 
         private static readonly ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>>
-            s_nullableConverterCache = new ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>>();
+            s_converterCache = new ConditionalWeakTable<ValueConverter, ConcurrentDictionary<Type, Func<IDataRecord, int, ValueConverter, object?>?>>();
 
         public override bool CanConvertFrom(Type type, ValueConverter converter)
         {
             Guard.Argument(type, nameof(type)).NotNull();
             Guard.Argument(converter, nameof(converter)).NotNull();
 
-            return DefaultConverters.ContainsKey(type) || LookupNullableConverterCache(type, converter) != null;
+            return DefaultConverters.ContainsKey(type) || LookupConverterCache(type, converter) != null;
         }
 
         public override object? ConvertFrom(IDataRecord record, int columnIndex, Type type, ValueConverter converter)
@@ -68,7 +68,7 @@ namespace Quelimb.TableMappers
             if (DefaultConverters.TryGetValue(type, out var defaultConverter))
                 return defaultConverter(record, columnIndex);
 
-            var convertFunc = LookupNullableConverterCache(type, converter);
+            var convertFunc = LookupConverterCache(type, converter);
             if (convertFunc == null) return base.ConvertFrom(record, columnIndex, type, converter);
             return convertFunc(record, columnIndex, converter);
         }
@@ -90,18 +90,24 @@ namespace Quelimb.TableMappers
             return new KeyValuePair<Type, Func<IDataRecord, int, object?>>(type, convertFrom);
         }
 
-        private static Func<IDataRecord, int, ValueConverter, object?>? LookupNullableConverterCache(Type type, ValueConverter valueConverter)
+        private static Func<IDataRecord, int, ValueConverter, object?>? LookupConverterCache(Type type, ValueConverter valueConverter)
         {
-            var cacheByConverter = s_nullableConverterCache.GetOrCreateValue(valueConverter);
+            var cacheByConverter = s_converterCache.GetOrCreateValue(valueConverter);
 
             if (!cacheByConverter.TryGetValue(type, out var conv))
             {
-                // Create converter for Nullable<T>
-                Type? underlyingType = Nullable.GetUnderlyingType(type);
-                if (underlyingType != null && valueConverter.CanConvertFrom(underlyingType))
+                if (type.IsEnum)
                 {
-                    // We cannot capture `valueConverter` because of memory leak
-                    conv = (r, c, v) => r.IsDBNull(c) ? null : v.ConvertFrom(r, c, underlyingType);
+                    var enumUnderlyingType = type.GetEnumUnderlyingType();
+                    if (valueConverter.CanConvertFrom(enumUnderlyingType))
+                        conv = (r, c, v) => v.ConvertFrom(r, c, enumUnderlyingType);
+                }
+                else if (Nullable.GetUnderlyingType(type) is Type nullableUnderlyingType &&
+                    valueConverter.CanConvertFrom(nullableUnderlyingType))
+                {
+                    // Create converter for Nullable<T>.
+                    // We cannot capture `valueConverter` because of memory leak.
+                    conv = (r, c, v) => r.IsDBNull(c) ? null : v.ConvertFrom(r, c, nullableUnderlyingType);
                 }
 
                 cacheByConverter.TryAdd(type, conv);

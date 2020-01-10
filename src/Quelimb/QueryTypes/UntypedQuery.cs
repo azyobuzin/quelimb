@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Dawn;
 
 namespace Quelimb
@@ -209,6 +212,30 @@ namespace Quelimb
                 mapperParam);
 
             return lambda.Compile();
+        }
+
+        public int ExecuteNonQuery(DbConnection connection, DbTransaction? transaction = null)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteNonQuery(this, connection, transaction);
+        }
+
+        public Task<int> ExecuteNonQueryAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteNonQueryAsync(this, connection, transaction, cancellationToken);
+        }
+
+        public object ExecuteScalar(DbConnection connection, DbTransaction? transaction = null)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteScalar(this, connection, transaction);
+        }
+
+        public Task<object?> ExecuteScalarAsync(DbConnection connection, DbTransaction? transaction = null, CancellationToken cancellationToken = default)
+        {
+            Guard.Argument(connection, nameof(connection)).NotNull();
+            return this.Environment.CommandExecutor.ExecuteScalarAsync(this, connection, transaction, cancellationToken);
         }
     }
 }

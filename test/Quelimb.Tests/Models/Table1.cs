@@ -1,4 +1,6 @@
 ﻿#nullable disable warnings
+#pragma warning disable 169 // private field is never used
+
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Quelimb.Tests.Models

@@ -89,7 +89,7 @@ namespace Quelimb
                 return;
             }
 
-            var sb = environment.StringBuilderPool.Get();
+            var sb = environment.StringBuilderPool?.Get() ?? new StringBuilder();
             try
             {
                 object?[] arguments = query.GetArguments();
@@ -181,20 +181,20 @@ namespace Quelimb
             }
             finally
             {
-                environment.StringBuilderPool.Return(sb);
+                environment.StringBuilderPool?.Return(sb);
             }
         }
 
-        private static string UnescapeBrackets(string formatStr, ObjectPool<StringBuilder> stringBuilderPool)
+        private static string UnescapeBrackets(string formatStr, ObjectPool<StringBuilder>? stringBuilderPool)
         {
             var replaceStartIndex = formatStr.IndexOfAny(s_brackets);
             if (replaceStartIndex < 0) return formatStr;
 
-            var sb = stringBuilderPool.Get().Append(formatStr);
+            var sb = stringBuilderPool?.Get().Append(formatStr) ?? new StringBuilder(formatStr);
             sb.Replace("{{", "{", replaceStartIndex, sb.Length - replaceStartIndex);
             sb.Replace("}}", "}", replaceStartIndex, sb.Length - replaceStartIndex);
             var s = sb.ToString();
-            stringBuilderPool.Return(sb);
+            stringBuilderPool?.Return(sb);
             return s;
         }
 
@@ -236,10 +236,10 @@ namespace Quelimb
             if (tableRef.EscapedAlias == null)
             {
                 // Cache escaped table name
-                var tableNameSb = environment.StringBuilderPool.Get();
+                var tableNameSb = environment.StringBuilderPool?.Get() ?? new StringBuilder();
                 environment.SqlGenerator.EscapeIdentifier(tableRef.TableMapper.GetTableName(), tableNameSb);
                 tableRef.EscapedAlias = tableNameSb.ToString();
-                environment.StringBuilderPool.Return(tableNameSb);
+                environment.StringBuilderPool?.Return(tableNameSb);
             }
 
             return tableRef.EscapedAlias;
