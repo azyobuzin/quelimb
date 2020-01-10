@@ -1,6 +1,8 @@
 # Quelimb
 A micro-ORM for complex queries.
 
+Status: Under Development
+
 ## Features
 ### Typo-less
 Use string interpolation, then the table names and column names are expanded.
@@ -61,7 +63,7 @@ var results = QueryBuilder.Default
 
 ### Other Values
 - `{value}` => `@QuelimbParam0` (passed to `DbParameterCollection`)
-- `{value:align,format}` => `@QuelimbParam1` (passed to `DbParameterCollection` as a formatted string value)
+- `{value,align:format}` => `@QuelimbParam1` (passed to `DbParameterCollection` as a formatted string value)
 
 ## Roadmap
 - Performance
