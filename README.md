@@ -59,7 +59,7 @@ var results = QueryBuilder.Default
 - `{table:*}` => `"Table"."Column1", "Table"."Column2"`
 
 ### Table Alias
-- `SELECT {table.Column} FROM {table: AS T}` => `SELECT T."Column" FROM "Table" AS T`
+- `SELECT {table.Column} FROM {table:AS T}` => `SELECT T."Column" FROM "Table" AS T`
 
 ### Other Values
 - `{value}` => `@QuelimbParam0` (passed to `DbParameterCollection`)

@@ -26,5 +26,17 @@ namespace Quelimb
                     null,
                     new[] { typeof(IDataRecord), typeof(int), typeof(ValueConverter) },
                     null) ?? throw new Exception("Could not get MethodInfo for TableMapper.CreateObjectFromOrderedColumns."));
+
+        private static MethodInfo? s_iCustomObjectToDbMapperCreateMapperToDbMethod;
+        public static MethodInfo ICustomObjectToDbMapperCreateMapperToDbMethod =>
+            s_iCustomObjectToDbMapperCreateMapperToDbMethod ?? (s_iCustomObjectToDbMapperCreateMapperToDbMethod =
+                typeof(ICustomObjectToDbMapper).GetMethod(nameof(ICustomObjectToDbMapper.CreateMapperToDb))
+                ?? throw new Exception("Could not get MethodInfo for ICustomObjectToDbMapper.CreateMapperToDb."));
+
+        private static MethodInfo? s_iCustomDbToObjectMapperCreateMapperFromDbMethod;
+        public static MethodInfo ICustomDbToObjectMapperCreateMapperFromDbMethod =>
+            s_iCustomDbToObjectMapperCreateMapperFromDbMethod ?? (s_iCustomDbToObjectMapperCreateMapperFromDbMethod =
+                typeof(ICustomDbToObjectMapper).GetMethod(nameof(ICustomDbToObjectMapper.CreateMapperFromDb))
+                ?? throw new Exception("Could not get MethodInfo for ICustomDbToObjectMapper.CreateMapperFromDb."));
     }
 }
