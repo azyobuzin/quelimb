@@ -3,9 +3,9 @@ using System.Data;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Quelimb.TableMappers
+namespace Quelimb.Mappers
 {
-    public abstract class CustomObjectToDbMapper<T> : ICustomObjectToDbMapper
+    public abstract class CustomObjectToDbMapper<T> : IGenericObjectToDbMapperProvider
     {
         private static readonly MethodInfo s_mapToDbMethod = typeof(CustomObjectToDbMapper<T>)
             .GetMethod(
@@ -15,17 +15,35 @@ namespace Quelimb.TableMappers
                 new[] { typeof(T), typeof(IDbDataParameter), typeof(ObjectToDbMapper) },
                 null);
 
-        public abstract void MapToDb(T obj, IDbDataParameter destination, ObjectToDbMapper rootMapper);
+        private readonly bool _acceptSubclassOfT;
 
-        bool ICustomObjectToDbMapper.CanMapToDb(Type objectType)
+        protected CustomObjectToDbMapper(bool acceptSubclassOfT)
         {
-            Check.NotNull(objectType, nameof(objectType));
-            return typeof(T).IsAssignableFrom(objectType);
+            this._acceptSubclassOfT = acceptSubclassOfT;
         }
 
-        Action<U, IDbDataParameter, ObjectToDbMapper> ICustomObjectToDbMapper.CreateMapperToDb<U>()
+        protected CustomObjectToDbMapper() : this(false) { }
+
+        public abstract void MapToDb(T obj, IDbDataParameter destination, ObjectToDbMapper rootMapper);
+
+        public bool CanMapToDb(Type objectType)
         {
-            if (!typeof(T).IsAssignableFrom(typeof(U)))
+            Check.NotNull(objectType, nameof(objectType));
+            return this._acceptSubclassOfT
+                ? typeof(T).IsAssignableFrom(objectType)
+                : Equals(objectType, typeof(T));
+        }
+
+        void ICustomObjectToDbMapper.MapToDb(object? obj, IDbDataParameter destination, ObjectToDbMapper rootMapper)
+        {
+            Check.NotNull(destination, nameof(destination));
+            Check.NotNull(rootMapper, nameof(rootMapper));
+            this.MapToDb((T)obj!, destination, rootMapper);
+        }
+
+        Action<U, IDbDataParameter, ObjectToDbMapper>? IGenericObjectToDbMapperProvider.CreateMapperToDb<U>()
+        {
+            if (!this.CanMapToDb(typeof(U)))
                 throw new ArgumentException($"The type argument U is {typeof(U)}, which is not supported.");
 
             if (typeof(T).IsValueType == typeof(U).IsValueType)

@@ -6,7 +6,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 
-namespace Quelimb.TableMappers
+namespace Quelimb.Mappers
 {
     public partial class DbToObjectMapper
     {
@@ -66,7 +66,7 @@ namespace Quelimb.TableMappers
 
                 if (customMapper.CanMapFromDb(objectType))
                 {
-                    var dlg = ReflectionUtils.ICustomDbToObjectMapperCreateMapperFromDbMethod
+                    var dlg = ReflectionUtils.IGenericDbToObjectMapperProviderCreateMapperFromDbMethod
                         .MakeGenericMethod(objectType)
                         .Invoke(customMapper, null) as Delegate;
 

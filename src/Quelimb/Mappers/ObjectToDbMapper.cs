@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
 
-namespace Quelimb.TableMappers
+namespace Quelimb.Mappers
 {
     public class ObjectToDbMapper
     {
@@ -30,7 +30,7 @@ namespace Quelimb.TableMappers
         protected virtual void MapToDbDefault(object? obj, IDbDataParameter destination)
         {
             Check.NotNull(destination, nameof(destination));
-            destination.Value = obj;
+            destination.Value = obj ?? DBNull.Value;
         }
 
         protected internal virtual Action<T, IDbDataParameter, ObjectToDbMapper>? GetCustomMapper<T>()
@@ -46,7 +46,7 @@ namespace Quelimb.TableMappers
 
                 if (customMapper.CanMapToDb(objectType))
                 {
-                    var dlg = ReflectionUtils.ICustomObjectToDbMapperCreateMapperToDbMethod
+                    var dlg = ReflectionUtils.IGenericObjectToDbMapperProviderCreateMapperToDbMethod
                         .MakeGenericMethod(objectType)
                         .Invoke(customMapper, null) as Delegate;
 

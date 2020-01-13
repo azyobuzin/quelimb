@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Data;
 using System.Data.Common;
 
-namespace Quelimb.TableMappers
+namespace Quelimb.Mappers
 {
     partial class DbToObjectMapper
     {

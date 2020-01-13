@@ -114,5 +114,13 @@ namespace Quelimb.TableMappers
 
             return conv;
         }
+
+        private static object ConvertFromDateTimeOffset(IDataRecord record, int columnIndex)
+        {
+            var fieldType = record.GetFieldType(columnIndex);
+            return Equals(fieldType, typeof(DateTimeOffset)) ? record.GetValue(columnIndex)
+                : Equals(fieldType, typeof(string)) ? DateTimeOffset.Parse(record.GetString(columnIndex))
+                : new DateTimeOffset(record.GetDateTime(columnIndex));
+        }
     }
 }

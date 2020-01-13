@@ -2,30 +2,44 @@
 using System.Data;
 using System.Linq.Expressions;
 
-namespace Quelimb.TableMappers
+namespace Quelimb.Mappers
 {
-    public class DelegateObjectToDbMapper<T> : ICustomObjectToDbMapper
+    public class DelegateObjectToDbMapper<T> : IGenericObjectToDbMapperProvider
     {
         public Action<T, IDbDataParameter, ObjectToDbMapper> MapToDb { get; }
 
-        public DelegateObjectToDbMapper(Action<T, IDbDataParameter, ObjectToDbMapper> mapToDb)
+        private readonly bool _acceptSubclassOfT;
+
+        public DelegateObjectToDbMapper(
+            Action<T, IDbDataParameter, ObjectToDbMapper> mapToDb,
+            bool acceptSubclassOfT = false)
         {
             Check.NotNull(mapToDb, nameof(mapToDb));
             this.MapToDb = mapToDb;
+            this._acceptSubclassOfT = acceptSubclassOfT;
         }
 
-        bool ICustomObjectToDbMapper.CanMapToDb(Type objectType)
+        public bool CanMapToDb(Type objectType)
         {
             Check.NotNull(objectType, nameof(objectType));
-            return typeof(T).IsAssignableFrom(objectType);
+            return this._acceptSubclassOfT
+                ? typeof(T).IsAssignableFrom(objectType)
+                : Equals(objectType, typeof(T));
         }
 
-        Action<U, IDbDataParameter, ObjectToDbMapper> ICustomObjectToDbMapper.CreateMapperToDb<U>()
+        void ICustomObjectToDbMapper.MapToDb(object? obj, IDbDataParameter destination, ObjectToDbMapper rootMapper)
+        {
+            Check.NotNull(destination, nameof(destination));
+            Check.NotNull(rootMapper, nameof(rootMapper));
+            this.MapToDb((T)obj!, destination, rootMapper);
+        }
+
+        Action<U, IDbDataParameter, ObjectToDbMapper>? IGenericObjectToDbMapperProvider.CreateMapperToDb<U>()
         {
             if (Equals(typeof(T), typeof(U)))
                 return (Action<U, IDbDataParameter, ObjectToDbMapper>)(object)this.MapToDb;
 
-            if (!typeof(T).IsAssignableFrom(typeof(U)))
+            if (!this.CanMapToDb(typeof(U)))
                 throw new ArgumentException($"The type argument U is {typeof(U)}, which is not supported.");
 
             // We need to convert the argument
