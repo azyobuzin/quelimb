@@ -3,7 +3,7 @@
 namespace Quelimb
 {
     [AttributeUsage(AttributeTargets.Constructor)]
-    public class ProjectedObjectConstructor : Attribute
+    public class ProjectedTupleConstructorAttribute : Attribute
     {
     }
 }

@@ -67,5 +67,21 @@ namespace Quelimb
                     nameof(IDataRecord.IsDBNull),
                     new[] { typeof(int) })
                 ?? throw new Exception("Could not get MethodInfo for IDataRecord.IsDBNull."));
+
+        public static bool IsNullableType(Type type)
+        {
+            Check.NotNull(type, nameof(type));
+            return !type.IsValueType || (type.IsGenericType && Equals(type.GetGenericTypeDefinition(), typeof(Nullable<>)));
+        }
+
+        public static Type GetTypeOfPropertyOrField(MemberInfo member)
+        {
+            return member switch
+            {
+                PropertyInfo p => p.PropertyType,
+                FieldInfo f => f.FieldType,
+                _ => throw new ArgumentException("member is neither a PropertyInfo nor aFieldInfo.", nameof(member)),
+            };
+        }
     }
 }

@@ -10,22 +10,17 @@ using System.Reflection;
 
 namespace Quelimb.Mappers
 {
-    public class DefaultProjectedRecordToObjectMapper
-        : IGenericDbToObjectMapperProvider, IRecordToObjectMapperProvider
+    public class ProjectedTupleToObjectMapper
+        : IGenericDbToObjectMapperProvider
     {
         public Type ObjectType { get; }
         private readonly Delegate _mapFromDb;
         private readonly ImmutableArray<Type> _columnTypes;
-        private readonly ConstructorInfo? _constructor;
-        private readonly ImmutableArray<NamedColumn> _namedColumns;
-        private Delegate? _mapFromRecord;
 
-        protected DefaultProjectedRecordToObjectMapper(
+        protected ProjectedTupleToObjectMapper(
             Type objectType,
             Delegate mapFromDb,
-            IEnumerable<Type> columnTypes,
-            ConstructorInfo? constructor,
-            IEnumerable<NamedColumn>? namedColumns)
+            IEnumerable<Type> columnTypes)
         {
             Check.NotNull(objectType, nameof(objectType));
             Check.NotNull(mapFromDb, nameof(mapFromDb));
@@ -39,25 +34,9 @@ namespace Quelimb.Mappers
             this.ObjectType = objectType;
             this._mapFromDb = mapFromDb;
             this._columnTypes = columnTypes.ToImmutableArray();
-
-            if (constructor != null)
-            {
-                if (!Equals(constructor.DeclaringType, objectType))
-                    throw new ArgumentException($"constructor is not a constructor of {objectType}.");
-
-                this._constructor = constructor;
-            }
-
-            if (namedColumns != null)
-            {
-                this._namedColumns = namedColumns.ToImmutableArray();
-
-                if (this._columnTypes.Length != this._namedColumns.Length)
-                    throw new ArgumentException("The length of namedColumns does not equal to the length of columnTypes.", nameof(namedColumns));
-            }
         }
 
-        public static DefaultProjectedRecordToObjectMapper CreateWithConstructor(
+        public static ProjectedTupleToObjectMapper CreateWithConstructor(
             Type objectType,
             ConstructorInfo constructor,
             bool autoNull)
@@ -81,7 +60,9 @@ namespace Quelimb.Mappers
             for (var i = 0; i < parameters.Length; i++)
             {
                 var p = parameters[i];
-                var required = autoNull && (!IsNullableType(p.ParameterType) || p.IsDefined(typeof(RequiredAttribute)));
+                var required = autoNull && (
+                    !ReflectionUtils.IsNullableType(p.ParameterType) ||
+                    p.IsDefined(typeof(RequiredAttribute)));
 
                 // Check required
                 if (required)
@@ -136,14 +117,12 @@ namespace Quelimb.Mappers
                 Expression.Block(constructorArgVars, statements),
                 recordParam, columnIndexParam, rootMapperParam).Compile();
 
-            return new DefaultProjectedRecordToObjectMapper(
+            return new ProjectedTupleToObjectMapper(
                 objectType, mapFromDb,
-                parameters.Select(x => x.ParameterType),
-                constructor,
-                null);
+                parameters.Select(x => x.ParameterType));
         }
 
-        public static DefaultProjectedRecordToObjectMapper CreateWithOrderedColumns(
+        public static ProjectedTupleToObjectMapper CreateWithOrderedColumns(
             Type objectType,
             ConstructorInfo? constructor,
             IEnumerable<MemberInfo> columns,
@@ -151,46 +130,23 @@ namespace Quelimb.Mappers
         {
             Check.NotNull(columns, nameof(columns));
             var columnsArr = columns.ToImmutableArray();
-            return new DefaultProjectedRecordToObjectMapper(
+            return new ProjectedTupleToObjectMapper(
                 objectType,
                 CreateMapperForOrderedColumns(objectType, constructor, columnsArr, autoNull),
-                columnsArr.Select(GetTypeOfPropertyOrField),
-                constructor,
-                null);
+                columnsArr.Select(ReflectionUtils.GetTypeOfPropertyOrField));
         }
 
-        public static DefaultProjectedRecordToObjectMapper CreateWithNamedColumns(
-            Type objectType,
-            ConstructorInfo? constructor,
-            IEnumerable<NamedColumn> columns,
-            bool autoNull)
-        {
-            Check.NotNull(columns, nameof(columns));
-            var columnsArr = columns.ToImmutableArray();
-            var columnMembersArr = ImmutableArray.CreateRange(columnsArr, x => x.MemberInfo);
-            return new DefaultProjectedRecordToObjectMapper(
-                objectType,
-                CreateMapperForOrderedColumns(
-                    objectType,
-                    constructor,
-                    columnMembersArr,
-                    autoNull),
-                columnMembersArr.Select(GetTypeOfPropertyOrField),
-                constructor,
-                columnsArr);
-        }
-
-        public static DefaultProjectedRecordToObjectMapper Create(Type objectType, bool autoNull)
+        public static ProjectedTupleToObjectMapper Create(Type objectType, bool autoNull)
         {
             Check.NotNull(objectType, nameof(objectType));
 
             var userConstructors = objectType.GetConstructors()
-                .Where(x => x.IsDefined(typeof(ProjectedObjectConstructor)))
+                .Where(x => x.IsDefined(typeof(ProjectedTupleConstructorAttribute)))
                 .ToList();
 
             if (userConstructors.Count >= 2)
             {
-                throw new InvalidOperationException($"{objectType} has more than one constructors that have ProjectedObjectConstructorAttribute.");
+                throw new InvalidProjectedObjectException($"{objectType} has more than one constructors that have ProjectedObjectConstructorAttribute.");
             }
 
             if (userConstructors.Count == 1)
@@ -199,25 +155,32 @@ namespace Quelimb.Mappers
             }
 
             var columns = objectType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(member =>
-                {
-                    if (member.IsDefined(typeof(NotMappedAttribute))) return false;
-
-                    var hasColumnAttribute = member.IsDefined(typeof(ColumnAttribute));
-
-                    return member switch
-                    {
-                        PropertyInfo p => p.CanRead && p.CanWrite && (hasColumnAttribute || p.GetMethod.IsPublic),
-                        FieldInfo f => !f.IsInitOnly && (hasColumnAttribute || f.IsPublic),
-                        _ => false,
-                    };
-                })
                 .Select(member => (member, attr: (ColumnAttribute?)member.GetCustomAttribute<ColumnAttribute>()))
-                // Stable sort with Order
-                .OrderBy(x => x.attr?.Order ?? -1)
-                .Select(x => new NamedColumn(x.attr?.Name ?? x.member.Name, x.member));
+                .Where(x =>
+                {
+                    if (x.attr == null) return false;
 
-            return CreateWithNamedColumns(objectType, null, columns, autoNull);
+                    if (x.attr.Order < 0)
+                        throw new InvalidProjectedObjectException($"ColumnAttribute.Order is not specified to {x.member}.");
+
+                    if (x.member is PropertyInfo p)
+                    {
+                        if (!p.CanRead || !p.CanWrite)
+                            throw new InvalidProjectedObjectException($"{x.member} cannot be read and written.");
+                    }
+                    else if (x.member is FieldInfo f)
+                    {
+                        if (f.IsInitOnly)
+                            throw new InvalidProjectedObjectException($"{x.member} is a readonly field.");
+                    }
+
+                    return true;
+                })
+                // Stable sort with Order
+                .OrderBy(x => x.attr!.Order)
+                .Select(x => x.member);
+
+            return CreateWithOrderedColumns(objectType, null, columns, autoNull);
         }
 
         public bool CanMapFromDb(Type objectType)
@@ -263,118 +226,7 @@ namespace Quelimb.Mappers
             return (Func<IDataRecord, int, DbToObjectMapper, T>)this._mapFromDb;
         }
 
-        Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>? IRecordToObjectMapperProvider.CreateMapperFromRecord<T>()
-        {
-            if (!this.CanMapFromDb(typeof(T)))
-                throw new ArgumentException($"The type argument T is {typeof(T)}, which is not supported.");
-
-            if (this._namedColumns.IsDefault) return null;
-
-            if (this._mapFromRecord != null)
-                return (Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>)this._mapFromRecord;
-
-            var coreMapper = (Func<IDataRecord, int[], DbToObjectMapper, T>)this.CreateMapperFromRecordCore();
-
-            Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>> mapper =
-                (columnNames, rootMapper) =>
-                {
-                    var columnIndexes = new int[this._namedColumns.Length];
-                    var fieldCount = columnNames.Count;
-                    for (var i = 0; i < columnIndexes.Length; i++)
-                    {
-                        var columnName = this._namedColumns[i].ColumnName;
-                        var found = false;
-                        for (var j = 0; j < fieldCount; j++)
-                        {
-                            if (columnName == columnNames[j])
-                            {
-                                columnIndexes[i] = j;
-                                found = true;
-                                break;
-                            }
-                        }
-
-                        if (!found) columnIndexes[i] = -1;
-                    }
-
-                    return record => coreMapper(record, columnIndexes, rootMapper);
-                };
-
-            this._mapFromRecord = mapper;
-            return mapper;
-        }
-
-        private Delegate CreateMapperFromRecordCore()
-        {
-            var recordParam = Expression.Parameter(typeof(IDataRecord), "record");
-            var columnIndexesParam = Expression.Parameter(typeof(int[]), "columnIndexes");
-            var rootMapperParam = Expression.Parameter(typeof(DbToObjectMapper), "rootMapper");
-            var objVar = Expression.Variable(this.ObjectType, "obj");
-
-            var columnCount = this._namedColumns.Length;
-            var statements = new List<Expression>(columnCount + 2);
-
-            var newObjExpr = this._constructor == null
-                ? Expression.New(this.ObjectType)
-                : Expression.New(
-                    this._constructor,
-                    // Pass default values to the constructor parameters
-                    this._constructor.GetParameters().Select(x => Expression.Default(x.ParameterType)));
-
-            statements.Add(Expression.Assign(objVar, newObjExpr));
-
-            for (var i = 0; i < columnCount; i++)
-            {
-                var column = this._namedColumns[i];
-                var indexVar = Expression.Variable(typeof(int), "columnIndex");
-
-                statements.Add(
-                    Expression.Block(
-                        new[] { indexVar },
-                        Expression.Assign(
-                            indexVar,
-                            Expression.ArrayIndex(columnIndexesParam, Expression.Constant(i))),
-                        Expression.IfThen(
-                            Expression.GreaterThanOrEqual(indexVar, Expression.Constant(0)),
-                            Expression.Assign(
-                                Expression.MakeMemberAccess(objVar, column.MemberInfo),
-                                Expression.Call(
-                                    rootMapperParam,
-                                    ReflectionUtils.DbToObjectMapperMapFromDbMethod
-                                        .MakeGenericMethod(this._columnTypes[i]),
-                                    recordParam,
-                                    indexVar))
-                        )
-                    ));
-            }
-
-            statements.Add(objVar);
-
-            return
-                Expression.Lambda(
-                    typeof(Func<,,,>).MakeGenericType(typeof(IDataRecord), typeof(int[]), typeof(DbToObjectMapper), this.ObjectType),
-                    Expression.Block(new[] { objVar }, statements),
-                    recordParam, columnIndexesParam, rootMapperParam)
-                .Compile();
-        }
-
-        private static bool IsNullableType(Type type)
-        {
-            Check.NotNull(type, nameof(type));
-            return !type.IsValueType || (type.IsGenericType && Equals(type.GetGenericTypeDefinition(), typeof(Nullable<>)));
-        }
-
-        private static Type GetTypeOfPropertyOrField(MemberInfo member)
-        {
-            return member switch
-            {
-                PropertyInfo p => p.PropertyType,
-                FieldInfo f => f.FieldType,
-                _ => throw new ArgumentException("member is neither a PropertyInfo nor aFieldInfo.", nameof(member)),
-            };
-        }
-
-        private static Delegate CreateMapperForOrderedColumns(
+        internal static Delegate CreateMapperForOrderedColumns(
             Type objectType,
             ConstructorInfo? constructor,
             ImmutableArray<MemberInfo> columns,
@@ -395,7 +247,7 @@ namespace Quelimb.Mappers
             var columnIndexParam = Expression.Parameter(typeof(int), "columnIndex");
             var rootMapperParam = Expression.Parameter(typeof(DbToObjectMapper), "rootMapper");
 
-            var fieldValueVars = columns.Select(x => Expression.Variable(GetTypeOfPropertyOrField(x))).ToArray();
+            var fieldValueVars = columns.Select(x => Expression.Variable(ReflectionUtils.GetTypeOfPropertyOrField(x))).ToArray();
             var statements = new List<Expression>();
             var returnTarget = Expression.Label(objectType);
             var returnNullTarget = Expression.Label();
@@ -403,8 +255,10 @@ namespace Quelimb.Mappers
             for (var i = 0; i < columns.Length; i++)
             {
                 var columnMember = columns[i];
-                var columnType = GetTypeOfPropertyOrField(columnMember);
-                var required = autoNull && (!IsNullableType(columnType) || columnMember.IsDefined(typeof(RequiredAttribute)));
+                var columnType = ReflectionUtils.GetTypeOfPropertyOrField(columnMember);
+                var required = autoNull && (
+                    !ReflectionUtils.IsNullableType(columnType) ||
+                    columnMember.IsDefined(typeof(RequiredAttribute)));
 
                 // Check required
                 if (required)

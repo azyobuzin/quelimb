@@ -3,7 +3,7 @@
 namespace Quelimb
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class ProjectedRecordAttribute : Attribute
+    public class ProjectedTupleAttribute : Attribute
     {
     }
 }
