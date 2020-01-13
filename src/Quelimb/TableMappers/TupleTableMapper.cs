@@ -10,12 +10,6 @@ namespace Quelimb.TableMappers
 {
     internal sealed class TupleTableMapper : TableMapper
     {
-        private static readonly ImmutableHashSet<Type> s_tupleTypes = ImmutableHashSet.Create(
-            typeof(Tuple<>), typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>),
-            typeof(Tuple<,,,,>), typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), typeof(Tuple<,,,,,,,>),
-            typeof(ValueTuple<>), typeof(ValueTuple<,>), typeof(ValueTuple<,,>), typeof(ValueTuple<,,,>),
-            typeof(ValueTuple<,,,,>), typeof(ValueTuple<,,,,,>), typeof(ValueTuple<,,,,,,>), typeof(ValueTuple<,,,,,,,>));
-
         private readonly Type _tupleType;
         private readonly Type[] _typeArguments;
         private readonly TableMapperProvider _tableMapperProvider;
@@ -90,7 +84,7 @@ namespace Quelimb.TableMappers
 
             // ValueTuple (no generic parameter) is not supported
             if (!type.IsConstructedGenericType) return false;
-            return s_tupleTypes.Contains(type.GetGenericTypeDefinition());
+            return ReflectionUtils.TupleTypes.Contains(type.GetGenericTypeDefinition());
         }
 
         private Func<IDataRecord, int, ValueConverter, object> CreateCreateObjectFunc()

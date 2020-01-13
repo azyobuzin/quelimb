@@ -136,10 +136,11 @@ namespace Quelimb.Mappers
                 columnsArr.Select(ReflectionUtils.GetTypeOfPropertyOrField));
         }
 
-        public static ProjectedTupleToObjectMapper Create(Type objectType, bool autoNull)
+        public static ProjectedTupleToObjectMapper Create(Type objectType)
         {
             Check.NotNull(objectType, nameof(objectType));
 
+            var autoNull = objectType.IsDefined(typeof(AutoNullAttribute));
             var userConstructors = objectType.GetConstructors()
                 .Where(x => x.IsDefined(typeof(ProjectedTupleConstructorAttribute)))
                 .ToList();

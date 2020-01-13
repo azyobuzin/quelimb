@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
@@ -46,6 +47,49 @@ namespace Quelimb.Mappers
 
                 this._constructor = constructor;
             }
+        }
+
+        public static TableToObjectMapper Create(Type objectType)
+        {
+            Check.NotNull(objectType, nameof(objectType));
+
+            var columns = objectType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+               .Select(member => (member, attr: (ColumnAttribute?)member.GetCustomAttribute<ColumnAttribute>()))
+               .Where(x =>
+               {
+                   if (x.member is PropertyInfo p)
+                   {
+                       if (x.attr == null && (!p.CanRead || !p.CanWrite || !p.GetMethod.IsPublic || p.GetIndexParameters().Length != 0))
+                           return false;
+
+                       if (x.attr != null && (!p.CanRead || !p.CanWrite || p.GetIndexParameters().Length != 0))
+                           throw new InvalidProjectedObjectException($"{x.member} cannot be read and written.");
+
+                       return true;
+                   }
+                   else if (x.member is FieldInfo f)
+                   {
+                       if (x.attr == null && (f.IsInitOnly || !f.IsPublic))
+                           return false;
+
+                       if (f.IsInitOnly)
+                           throw new InvalidProjectedObjectException($"{x.member} is a readonly field.");
+
+                       return true;
+                   }
+
+                   return false;
+               })
+               // Stable sort with Order
+               .OrderBy(x => x.attr?.Order ?? -1)
+               .Select(x => new NamedColumn(x.attr?.Name ?? x.member.Name, x.member));
+
+            return new TableToObjectMapper(
+                objectType,
+                objectType.GetCustomAttribute<TableAttribute>()?.Name ?? objectType.Name,
+                null,
+                columns,
+                objectType.IsDefined(typeof(AutoNullAttribute)));
         }
 
         public bool CanMapFromDb(Type objectType)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Data;
 using System.Reflection;
 using Quelimb.Mappers;
@@ -40,6 +41,12 @@ namespace Quelimb
                 typeof(IGenericDbToObjectMapperProvider).GetMethod(nameof(IGenericDbToObjectMapperProvider.CreateMapperFromDb))
                 ?? throw new Exception("Could not get MethodInfo for IGenericDbToObjectMapperProvider.CreateMapperFromDb."));
 
+        private static MethodInfo? s_iRecordToObjectMapperProviderCreateMapperFromRecordMethod;
+        public static MethodInfo IRecordToObjectMapperProviderCreateMapperFromRecordMethod =>
+            s_iRecordToObjectMapperProviderCreateMapperFromRecordMethod ?? (s_iRecordToObjectMapperProviderCreateMapperFromRecordMethod =
+                typeof(IRecordToObjectMapperProvider).GetMethod(nameof(IRecordToObjectMapperProvider.CreateMapperFromRecord))
+                ?? throw new Exception("Could not get MethodInfo for IRecordToObjectMapperProvider.CreateMapperFromRecord."));
+
         private static MethodInfo? s_dbToObjectMapperMapFromDbMethod;
         public static MethodInfo DbToObjectMapperMapFromDbMethod =>
             s_dbToObjectMapperMapFromDbMethod ?? (s_dbToObjectMapperMapFromDbMethod =
@@ -67,6 +74,12 @@ namespace Quelimb
                     nameof(IDataRecord.IsDBNull),
                     new[] { typeof(int) })
                 ?? throw new Exception("Could not get MethodInfo for IDataRecord.IsDBNull."));
+
+        public static readonly ImmutableHashSet<Type> TupleTypes = ImmutableHashSet.Create(
+           typeof(Tuple<>), typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>),
+           typeof(Tuple<,,,,>), typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), typeof(Tuple<,,,,,,,>),
+           typeof(ValueTuple<>), typeof(ValueTuple<,>), typeof(ValueTuple<,,>), typeof(ValueTuple<,,,>),
+           typeof(ValueTuple<,,,,>), typeof(ValueTuple<,,,,,>), typeof(ValueTuple<,,,,,,>), typeof(ValueTuple<,,,,,,,>));
 
         public static bool IsNullableType(Type type)
         {
