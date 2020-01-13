@@ -8,6 +8,7 @@ Status: Under Development
 Use string interpolation, then the table names and column names are expanded.
 
 ```csharp
+[System.ComponentModel.DataAnnotations.Schema.Table]
 class Table1
 {
     public int Column1 { get; set; }
@@ -28,6 +29,7 @@ List<Table1> results = QueryBuilder.Default
 You can write a query that selects columns of multiple tables. The records can be mapped as you want.
 
 ```csharp
+[System.ComponentModel.DataAnnotations.Schema.Table]
 class Table2
 {
     public int ColumnA { get; set; }
