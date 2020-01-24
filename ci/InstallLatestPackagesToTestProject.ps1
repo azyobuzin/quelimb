@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $outPath = New-TemporaryFile
-dotnet outdated -o "$outPath" src/Quelimb/Quelimb.csproj
+~/.dotnet/tools/dotnet-outdated -o "$outPath" src/Quelimb/Quelimb.csproj
 
 $outPath.Refresh()
 if ($outPath.Length -eq 0) { return }
