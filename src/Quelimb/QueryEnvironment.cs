@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.ObjectPool;
 using Quelimb.CommandExecutors;
+using Quelimb.QueryFactory;
 using Quelimb.SqlGenerators;
 using Quelimb.TableMappers;
 
@@ -25,6 +26,7 @@ namespace Quelimb
         public CommandExecutor CommandExecutor { get; }
 
         internal ConcurrentDictionary<Type, Delegate> RecordConverterCache { get; } = new ConcurrentDictionary<Type, Delegate>();
+        internal QueryFactoryCache QueryFactoryCache { get; } = new QueryFactoryCache();
 
         private QueryEnvironment()
             : this(
@@ -51,6 +53,8 @@ namespace Quelimb
             this.FormatProvider = formatProvider;
             this.CommandExecutor = commandExecutor ?? throw new ArgumentNullException(nameof(commandExecutor));
         }
+
+        // TODO: QueryEnvironmentBuilder
 
         public QueryEnvironment WithStringBuilderPool(ObjectPool<StringBuilder>? stringBuilderPool)
         {

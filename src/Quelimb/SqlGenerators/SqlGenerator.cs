@@ -27,8 +27,9 @@ namespace Quelimb.SqlGenerators
         /// <returns>The parameter name which will be set to <see cref="System.Data.IDataParameter.ParameterName"/>.</returns>
         public virtual string AddParameterToQuery(int parameterIndex, StringBuilder queryDestination)
         {
-            var parameterName = "@QuelimbParam" + parameterIndex.ToString(CultureInfo.InvariantCulture);
-            queryDestination.Append(parameterName);
+            var initialLength = queryDestination.Length;
+            queryDestination.Append("@QuelimbParam").Append(parameterIndex.ToString(CultureInfo.InvariantCulture));
+            var parameterName = queryDestination.ToString(initialLength, queryDestination.Length - initialLength);
             return parameterName;
         }
     }
