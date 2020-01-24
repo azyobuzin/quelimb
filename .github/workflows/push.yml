@@ -1,0 +1,25 @@
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        dependency: [lowest, highest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '3.1.101'
+
+      - name: Install dotnet-outdated
+        if: matrix.dependency == 'highest'
+        run: dotnet tool install -g --version 2.8.0 dotnet-outdated
+      - name: Install latest packages to test project
+        if: matrix.dependency == 'highest'
+        shell: pwsh
+        run: ci/InstallLatestPackagesToTestProject.ps1
+
+      - name: dotnet test
+        run: dotnet test test/Quelimb.Tests/Quelimb.Tests.csproj

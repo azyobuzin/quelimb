@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Quelimb.Tests.Models
 {
-    [Table]
+    [Table(nameof(Table1))]
     public class Table1
     {
         public int Id { get; set; }
