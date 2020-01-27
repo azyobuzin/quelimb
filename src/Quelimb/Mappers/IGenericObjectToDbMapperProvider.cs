@@ -11,7 +11,7 @@ namespace Quelimb.Mappers
         /// </summary>
         /// <typeparam name="T">
         /// The source type.
-        /// The implementation can assume that <typeparamref name="T"/> is a type which <see cref="ICustomObjectToDbMapper.CanMapToDb(Type)"/> returns <c>true</c> when is passed to the method.
+        /// The implementation can assume that <typeparamref name="T"/> is a type which <see cref="ICustomObjectToDbMapper.CanMapToDb(Type)"/> returns <see langword="true"/> when is passed to the method.
         /// </typeparam>
         /// <returns>
         /// <para>
@@ -19,7 +19,7 @@ namespace Quelimb.Mappers
         /// The third parameter is a root mapper, which can be used to pass a value to anothor mapper.
         /// </para>
         /// <para>
-        /// If the caller should use <see cref="ICustomObjectToDbMapper.MapToDb(object, IDbDataParameter, ObjectToDbMapper)"/>, the implementation returns <c>null</c>.
+        /// If the caller should use <see cref="ICustomObjectToDbMapper.MapToDb(object, IDbDataParameter, ObjectToDbMapper)"/>, the implementation returns <see langword="null"/>.
         /// </para>
         /// </returns>
         Action<T, IDbDataParameter, ObjectToDbMapper>? CreateMapperToDb<T>();

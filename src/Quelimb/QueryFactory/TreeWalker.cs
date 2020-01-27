@@ -301,6 +301,7 @@ namespace Quelimb.QueryFactory
                 switch (Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type))
                 {
                     case TypeCode.Object:
+                        // cexpr may be a closure environment.
                         reporter.OnObjectConstant(cexpr);
                         return true;
 

@@ -18,7 +18,7 @@ namespace Quelimb.Mappers
         /// <summary>
         /// Gets the column name corresponding to the <paramref name="member"/>.
         /// </summary>
-        /// <returns>A column name. If there is no corresponding column name, returns <c>null</c>.</returns>
+        /// <returns>A column name. If there is no corresponding column name, returns <see langword="null"/>.</returns>
         string? GetColumnNameByMemberInfo(MemberInfo member);
     }
 }
