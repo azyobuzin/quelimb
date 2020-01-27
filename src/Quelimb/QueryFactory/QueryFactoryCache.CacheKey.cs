@@ -9,7 +9,14 @@ namespace Quelimb.QueryFactory
     {
         internal abstract class CacheKey
         {
-            public override abstract int GetHashCode();
+            protected CacheKey(int hashCode)
+            {
+                this.HashCode = hashCode;
+            }
+
+            protected int HashCode { get; }
+
+            public override int GetHashCode() => this.HashCode;
 
             public override bool Equals(object obj)
             {
@@ -39,10 +46,10 @@ namespace Quelimb.QueryFactory
             /// </summary>
             private static bool SerializedVsExpression(SerializedKey left, ExpressionKey right)
             {
-                return TreeWalker.Walk(right.Expression, new CompareWithSerialized(left.SerializedTree));
+                return new CompareWithSerialized(left.SerializedTree).Walk(right.Expression);
             }
 
-            private sealed class CompareWithSerialized : ITreeTraversalReporter
+            private sealed class CompareWithSerialized : TreeWalker
             {
                 private ImmutableArray<byte> _serialized;
                 private int _position;
@@ -52,7 +59,7 @@ namespace Quelimb.QueryFactory
                     this._serialized = serialized;
                 }
 
-                public bool OnData(ReadOnlySpan<byte> data)
+                protected override bool OnData(ReadOnlySpan<byte> data)
                 {
                     var enoughLength = this._serialized.Length - this._position >= data.Length;
                     var dataEqual = enoughLength &&
@@ -64,39 +71,29 @@ namespace Quelimb.QueryFactory
                     this._position += data.Length;
                     return true;
                 }
-
-                public void OnObjectConstant(ConstantExpression expression)
-                {
-                }
             }
         }
 
         internal sealed class SerializedKey : CacheKey
         {
-            private readonly CacheItem _inner;
-
-            public SerializedKey(CacheItem inner)
+            public SerializedKey(ImmutableArray<byte> serializedTree, int hashCode)
+                : base(hashCode)
             {
-                this._inner = inner;
+                this.SerializedTree = serializedTree;
             }
 
-            public ImmutableArray<byte> SerializedTree => this._inner.SerializedTree;
-
-            public override int GetHashCode() => this._inner.HashCode;
+            public ImmutableArray<byte> SerializedTree { get; }
         }
 
         internal sealed class ExpressionKey : CacheKey
         {
-            public Expression Expression { get; }
-            private readonly int _hashCode;
-
             public ExpressionKey(Expression expression, int hashCode)
+                : base(hashCode)
             {
                 this.Expression = expression;
-                this._hashCode = hashCode;
             }
 
-            public override int GetHashCode() => this._hashCode;
+            public Expression Expression { get; }
         }
     }
 }

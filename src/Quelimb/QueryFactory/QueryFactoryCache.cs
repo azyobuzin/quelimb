@@ -20,7 +20,7 @@ namespace Quelimb.QueryFactory
 
             try
             {
-                TreeWalker.Walk(expression, collector);
+                collector.Walk(expression);
                 var hashCode = collector.Hasher.ToHashCode();
 
                 if (!this._dic.TryGetValue(new ExpressionKey(expression, hashCode), out var cacheItem))
@@ -30,10 +30,10 @@ namespace Quelimb.QueryFactory
                     var serialized = TreeSerializer.Serialize(expression);
 
                     cacheItem = new CacheItem(serialized, hashCode, dlg);
-                    cacheItem = this._dic.GetOrAdd(new SerializedKey(cacheItem), cacheItem);
+                    cacheItem = this._dic.GetOrAdd(new SerializedKey(serialized, hashCode), cacheItem);
                 }
 
-                return cacheItem.CompiledDelegate(collector.Constants);
+                return cacheItem.CompiledDelegate(collector.ObjectConstants);
             }
             finally
             {
@@ -46,18 +46,18 @@ namespace Quelimb.QueryFactory
             throw new NotImplementedException(); // TODO
         }
 
-        internal sealed class HashAndConstantCollector : ITreeTraversalReporter
+        internal sealed class HashAndConstantCollector : TreeWalker
         {
             public HashCode Hasher;
-            public readonly List<object> Constants = new List<object>();
+            public readonly List<object> ObjectConstants = new List<object>();
 
             public void Clear()
             {
                 this.Hasher = new HashCode();
-                this.Constants.Clear();
+                this.ObjectConstants.Clear();
             }
 
-            bool ITreeTraversalReporter.OnData(ReadOnlySpan<byte> data)
+            protected override bool OnData(ReadOnlySpan<byte> data)
             {
                 // If data is large, hash by 4 bytes.
                 if (data.Length >= sizeof(int))
@@ -72,26 +72,28 @@ namespace Quelimb.QueryFactory
                 return true;
             }
 
-            void ITreeTraversalReporter.OnObjectConstant(ConstantExpression expression)
+            protected override void OnObjectConstant(ConstantExpression expression)
             {
-                this.Constants.Add(expression.Value);
+                this.ObjectConstants.Add(expression.Value);
             }
 
             public static int CalculateHashCode(Expression expression)
             {
                 var self = new HashAndConstantCollector();
-                TreeWalker.Walk(expression, self);
+                self.Walk(expression);
                 return self.Hasher.ToHashCode();
             }
         }
 
-        internal sealed class TreeSerializer : ITreeTraversalReporter
+        internal sealed class TreeSerializer : TreeWalker
         {
             private const int MinBufferSize = 256; // TODO: Optimize for use cases
             private byte[]? _buffer;
             private int _position;
 
-            bool ITreeTraversalReporter.OnData(ReadOnlySpan<byte> data)
+            private TreeSerializer() { }
+
+            protected override bool OnData(ReadOnlySpan<byte> data)
             {
                 if (this._buffer == null)
                 {
@@ -113,14 +115,10 @@ namespace Quelimb.QueryFactory
                 return true;
             }
 
-            void ITreeTraversalReporter.OnObjectConstant(ConstantExpression expression)
-            {
-            }
-
             public static ImmutableArray<byte> Serialize(Expression expression)
             {
                 var self = new TreeSerializer();
-                TreeWalker.Walk(expression, self);
+                self.Walk(expression);
 
                 return self._buffer == null
                     ? ImmutableArray<byte>.Empty

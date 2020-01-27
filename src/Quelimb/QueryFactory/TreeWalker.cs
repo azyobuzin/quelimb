@@ -4,12 +4,13 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Quelimb.QueryFactory
 {
-    internal static class TreeWalker
+    internal abstract class TreeWalker
     {
-        public static bool Walk(Expression? expression, ITreeTraversalReporter reporter)
+        public bool Walk(Expression? expression)
         {
             bool result;
 
@@ -24,18 +25,18 @@ namespace Quelimb.QueryFactory
 
                 if (expression == null)
                 {
-                    if (!reporter.OnData(int.MinValue))
+                    if (!this.OnData(int.MinValue))
                         return false;
                     continue;
                 }
 
-                if (!reporter.OnData((int)expression.NodeType))
+                if (!this.OnData((int)expression.NodeType))
                     return false;
 
                 switch (expression)
                 {
                     case BinaryExpression e:
-                        if (!reporter.OnData(e.Method?.MethodHandle.Value ?? IntPtr.Zero))
+                        if (!this.OnData(e.Method?.MethodHandle.Value ?? IntPtr.Zero))
                             return false;
                         stack.Push(e.Left);
                         stack.Push(e.Right);
@@ -45,7 +46,7 @@ namespace Quelimb.QueryFactory
                     case BlockExpression e:
                         foreach (var x in e.Variables)
                         {
-                            if (!reporter.OnData(x.Type.TypeHandle.Value))
+                            if (!this.OnData(x.Type.TypeHandle.Value))
                                 return false;
                         }
 
@@ -67,19 +68,19 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case DefaultExpression e:
-                        if (!reporter.OnData(e.Type.TypeHandle.Value))
+                        if (!this.OnData(e.Type.TypeHandle.Value))
                             return false;
                         break;
 
                     case DynamicExpression e:
-                        result = reporter.OnData(RuntimeHelpers.GetHashCode(e.Binder))
-                            && reporter.OnData(e.Type.TypeHandle.Value);
+                        result = this.OnData(RuntimeHelpers.GetHashCode(e.Binder))
+                            && this.OnData(e.Type.TypeHandle.Value);
                         if (!result) return false;
                         PushMany(e.Arguments);
                         break;
 
                     case GotoExpression e:
-                        if (!reporter.OnData(GetObjIndex(e.Target)))
+                        if (!this.OnData(GetObjIndex(e.Target)))
                             return false;
                         stack.Push(e.Value);
                         break;
@@ -97,7 +98,7 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case LabelExpression e:
-                        if (!reporter.OnData(GetObjIndex(e.Target)))
+                        if (!this.OnData(GetObjIndex(e.Target)))
                             return false;
                         stack.Push(e.DefaultValue);
                         break;
@@ -105,8 +106,8 @@ namespace Quelimb.QueryFactory
                     case LambdaExpression e:
                         foreach (var x in e.Parameters)
                         {
-                            result = reporter.OnData(x.IsByRef)
-                                && reporter.OnData(x.Type.TypeHandle.Value);
+                            result = this.OnData(x.IsByRef)
+                                && this.OnData(x.Type.TypeHandle.Value);
                             if (!result) return false;
                         }
 
@@ -123,8 +124,8 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case LoopExpression e:
-                        result = reporter.OnData(GetObjIndex(e.BreakLabel))
-                            && reporter.OnData(GetObjIndex(e.ContinueLabel));
+                        result = this.OnData(GetObjIndex(e.BreakLabel))
+                            && this.OnData(GetObjIndex(e.ContinueLabel));
                         stack.Push(e.Body);
                         break;
 
@@ -144,20 +145,20 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case MethodCallExpression e:
-                        if (!reporter.OnData(e.Method.MethodHandle.Value))
+                        if (!this.OnData(e.Method.MethodHandle.Value))
                             return false;
                         stack.Push(e.Object);
                         PushMany(e.Arguments);
                         break;
 
                     case NewArrayExpression e:
-                        if (!reporter.OnData(e.Type.TypeHandle.Value))
+                        if (!this.OnData(e.Type.TypeHandle.Value))
                             return false;
                         PushMany(e.Expressions);
                         break;
 
                     case NewExpression e:
-                        if (!reporter.OnData(e.Constructor?.MethodHandle.Value ?? IntPtr.Zero))
+                        if (!this.OnData(e.Constructor?.MethodHandle.Value ?? IntPtr.Zero))
                             return false;
 
                         foreach (var x in e.Members)
@@ -170,20 +171,20 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case ParameterExpression e:
-                        if (!reporter.OnData(GetObjIndex(e)))
+                        if (!this.OnData(GetObjIndex(e)))
                             return false;
                         break;
 
                     case RuntimeVariablesExpression e:
                         foreach (var x in e.Variables)
                         {
-                            if (!reporter.OnData(GetObjIndex(x)))
+                            if (!this.OnData(GetObjIndex(x)))
                                 return false;
                         }
                         break;
 
                     case SwitchExpression e:
-                        if (!reporter.OnData(e.Comparison?.MethodHandle.Value ?? IntPtr.Zero))
+                        if (!this.OnData(e.Comparison?.MethodHandle.Value ?? IntPtr.Zero))
                             return false;
 
                         stack.Push(e.SwitchValue);
@@ -199,7 +200,7 @@ namespace Quelimb.QueryFactory
                         stack.Push(e.Body);
                         foreach (var catchBlock in e.Handlers)
                         {
-                            if (!reporter.OnData(catchBlock.Test?.TypeHandle.Value ?? IntPtr.Zero))
+                            if (!this.OnData(catchBlock.Test?.TypeHandle.Value ?? IntPtr.Zero))
                                 return false;
                             stack.Push(catchBlock.Filter);
                             stack.Push(catchBlock.Body);
@@ -209,13 +210,13 @@ namespace Quelimb.QueryFactory
                         break;
 
                     case TypeBinaryExpression e:
-                        if (!reporter.OnData(e.TypeOperand.TypeHandle.Value))
+                        if (!this.OnData(e.TypeOperand.TypeHandle.Value))
                             return false;
                         stack.Push(e.Expression);
                         break;
 
                     case UnaryExpression e:
-                        if (!reporter.OnData(e.Method?.MethodHandle.Value ?? IntPtr.Zero))
+                        if (!this.OnData(e.Method?.MethodHandle.Value ?? IntPtr.Zero))
                             return false;
                         stack.Push(e.Operand);
                         break;
@@ -243,19 +244,19 @@ namespace Quelimb.QueryFactory
 
             bool OnMemberInfo(MemberInfo? member)
             {
-                if (member == null) return reporter.OnData((byte)0);
+                if (member == null) return this.OnData((byte)0);
 
                 var moduleHandle = member.Module.ModuleHandle;
                 // ModuleHandle has only an IntPtr field
-                return reporter.OnData(Unsafe.As<ModuleHandle, IntPtr>(ref moduleHandle))
-                    && reporter.OnData(member?.MetadataToken ?? 0);
+                return this.OnData(Unsafe.As<ModuleHandle, IntPtr>(ref moduleHandle))
+                    && this.OnData(member?.MetadataToken ?? 0);
             }
 
             bool OnElementInit(ElementInit elementInit)
             {
                 PushMany(elementInit.Arguments);
-                return reporter.OnData(elementInit.AddMethod.MethodHandle.Value)
-                    && reporter.OnData(elementInit.Arguments.Count);
+                return this.OnData(elementInit.AddMethod.MethodHandle.Value)
+                    && this.OnData(elementInit.Arguments.Count);
             }
 
             bool OnMemberBinding(MemberBinding memberBinding)
@@ -295,14 +296,14 @@ namespace Quelimb.QueryFactory
             bool ReportConstantExpression(ConstantExpression cexpr)
             {
                 var type = cexpr.Type;
-                if (!reporter.OnData(type.TypeHandle.Value)) return false;
+                if (!this.OnData(type.TypeHandle.Value)) return false;
 
                 var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type);
                 switch (Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type))
                 {
                     case TypeCode.Object:
                         // cexpr may be a closure environment.
-                        reporter.OnObjectConstant(cexpr);
+                        this.OnObjectConstant(cexpr);
                         return true;
 
                     case TypeCode.Empty:
@@ -314,25 +315,49 @@ namespace Quelimb.QueryFactory
 
                 return typeCode switch
                 {
-                    TypeCode.DBNull => reporter.OnData((byte)0),
-                    TypeCode.Boolean => reporter.OnData(Unsafe.Unbox<bool>(value)),
-                    TypeCode.Char => reporter.OnData(Unsafe.Unbox<char>(value)),
-                    TypeCode.SByte => reporter.OnData(Unsafe.Unbox<sbyte>(value)),
-                    TypeCode.Byte => reporter.OnData(Unsafe.Unbox<byte>(value)),
-                    TypeCode.Int16 => reporter.OnData(Unsafe.Unbox<short>(value)),
-                    TypeCode.UInt16 => reporter.OnData(Unsafe.Unbox<ushort>(value)),
-                    TypeCode.Int32 => reporter.OnData(Unsafe.Unbox<int>(value)),
-                    TypeCode.UInt32 => reporter.OnData(Unsafe.Unbox<uint>(value)),
-                    TypeCode.Int64 => reporter.OnData(Unsafe.Unbox<long>(value)),
-                    TypeCode.UInt64 => reporter.OnData(Unsafe.Unbox<ulong>(value)),
-                    TypeCode.Single => reporter.OnData(Unsafe.Unbox<float>(value)),
-                    TypeCode.Double => reporter.OnData(Unsafe.Unbox<double>(value)),
-                    TypeCode.Decimal => reporter.OnData(Unsafe.Unbox<decimal>(value)),
-                    TypeCode.DateTime => reporter.OnData(Unsafe.Unbox<DateTime>(value)),
-                    TypeCode.String => reporter.OnData((string)value),
+                    TypeCode.DBNull => this.OnData((byte)0),
+                    TypeCode.Boolean => this.OnData(Unsafe.Unbox<bool>(value)),
+                    TypeCode.Char => this.OnData(Unsafe.Unbox<char>(value)),
+                    TypeCode.SByte => this.OnData(Unsafe.Unbox<sbyte>(value)),
+                    TypeCode.Byte => this.OnData(Unsafe.Unbox<byte>(value)),
+                    TypeCode.Int16 => this.OnData(Unsafe.Unbox<short>(value)),
+                    TypeCode.UInt16 => this.OnData(Unsafe.Unbox<ushort>(value)),
+                    TypeCode.Int32 => this.OnData(Unsafe.Unbox<int>(value)),
+                    TypeCode.UInt32 => this.OnData(Unsafe.Unbox<uint>(value)),
+                    TypeCode.Int64 => this.OnData(Unsafe.Unbox<long>(value)),
+                    TypeCode.UInt64 => this.OnData(Unsafe.Unbox<ulong>(value)),
+                    TypeCode.Single => this.OnData(Unsafe.Unbox<float>(value)),
+                    TypeCode.Double => this.OnData(Unsafe.Unbox<double>(value)),
+                    TypeCode.Decimal => this.OnData(Unsafe.Unbox<decimal>(value)),
+                    TypeCode.DateTime => this.OnData(Unsafe.Unbox<DateTime>(value)),
+                    TypeCode.String => this.OnData((string)value),
                     _ => throw new InvalidOperationException("Unreachable"),
                 };
             }
+        }
+
+        /// <returns>Whether the walker should continue traversing the tree.</returns>
+        protected virtual bool OnData(ReadOnlySpan<byte> data) => true;
+
+        protected virtual void OnObjectConstant(ConstantExpression expression) { }
+
+        private bool OnData<T>(in T data)
+            where T : unmanaged
+        {
+#if NETSTANDARD2_1
+            return this.OnData(MemoryMarshal.CreateReadOnlySpan(
+                ref Unsafe.As<T, byte>(ref Unsafe.AsRef(data)), Unsafe.SizeOf<T>()));
+#else
+            ReadOnlySpan<T> span = stackalloc T[] { data };
+            return this.OnData(MemoryMarshal.AsBytes(span));
+#endif
+        }
+
+        private bool OnData(string? data)
+        {
+            return data == null
+                ? this.OnData(int.MinValue)
+                : this.OnData(data.Length) && this.OnData(MemoryMarshal.AsBytes(data.AsSpan()));
         }
     }
 }
