@@ -9,15 +9,23 @@ namespace Quelimb.Mappers
 {
     public class ObjectToDbMapper
     {
+        private static ObjectToDbMapper? s_default;
+        public static ObjectToDbMapper Default => s_default ?? (s_default = Create(null));
+
         private readonly ImmutableArray<ICustomObjectToDbMapper> _customMappers;
         private readonly ConcurrentDictionary<Type, Tuple<Delegate?, Action<object?, IDbDataParameter, ObjectToDbMapper>?>?> _cache =
             new ConcurrentDictionary<Type, Tuple<Delegate?, Action<object?, IDbDataParameter, ObjectToDbMapper>?>?>();
         private readonly Func<Type, Tuple<Delegate?, Action<object?, IDbDataParameter, ObjectToDbMapper>?>?> _factory;
 
-        public ObjectToDbMapper(IEnumerable<ICustomObjectToDbMapper> customMappers)
+        protected ObjectToDbMapper(IEnumerable<ICustomObjectToDbMapper>? customMappers)
         {
             this._customMappers = customMappers?.ToImmutableArray() ?? ImmutableArray<ICustomObjectToDbMapper>.Empty;
             this._factory = this.CreateCustomMapperDelegate;
+        }
+
+        public static ObjectToDbMapper Create(IEnumerable<ICustomDbToObjectMapper>? customMappers)
+        {
+            return new ObjectToDbMapper(null);
         }
 
         public void MapToDb<T>(T obj, IDbDataParameter destination)

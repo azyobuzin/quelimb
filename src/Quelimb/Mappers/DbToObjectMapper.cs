@@ -12,24 +12,30 @@ namespace Quelimb.Mappers
 {
     public partial class DbToObjectMapper
     {
+        private static DbToObjectMapper? s_default;
+        public static DbToObjectMapper Default => s_default ?? (s_default = Create(null));
+
         private ImmutableList<ICustomDbToObjectMapper> _customMappers;
         private readonly ConcurrentDictionary<Type, int?> _numberOfColumnsCache = new ConcurrentDictionary<Type, int?>();
         private readonly ConcurrentDictionary<Type, Tuple<Delegate?, Func<IDataRecord, int, DbToObjectMapper, object?>?>?> _mapFromDbCache =
             new ConcurrentDictionary<Type, Tuple<Delegate?, Func<IDataRecord, int, DbToObjectMapper, object?>?>?>();
         private readonly ConcurrentDictionary<Type, Delegate?> _mapFromRecordCache = new ConcurrentDictionary<Type, Delegate?>();
+        private readonly ConcurrentDictionary<Type, IQueryableTable?> _queryableTableCache = new ConcurrentDictionary<Type, IQueryableTable?>();
         private readonly Func<Type, int?> _getNumberOfColumnsUsedCore;
         private readonly Func<Type, Tuple<Delegate?, Func<IDataRecord, int, DbToObjectMapper, object?>?>?> _createMapFromDbDelegate;
         private readonly Func<Type, Delegate?> _createMapFromRecordDelegate;
+        private readonly Func<Type, IQueryableTable?> _getQueryableCore;
 
-        protected DbToObjectMapper(IEnumerable<ICustomDbToObjectMapper> customMappers)
+        protected DbToObjectMapper(IEnumerable<ICustomDbToObjectMapper>? customMappers)
         {
             this._customMappers = customMappers?.ToImmutableList() ?? ImmutableList<ICustomDbToObjectMapper>.Empty;
             this._getNumberOfColumnsUsedCore = this.GetNumberOfColumnsUsedCore;
             this._createMapFromDbDelegate = this.CreateMapFromDbDelegate;
             this._createMapFromRecordDelegate = this.CreateMapFromRecordDelegate;
+            this._getQueryableCore = this.GetQueryableTableCore;
         }
 
-        public static DbToObjectMapper Create(IEnumerable<ICustomDbToObjectMapper> customMappers)
+        public static DbToObjectMapper Create(IEnumerable<ICustomDbToObjectMapper>? customMappers)
         {
             customMappers = customMappers?.Concat(DefaultMappers) ?? DefaultMappers;
             return new DbToObjectMapper(customMappers);
@@ -53,6 +59,12 @@ namespace Quelimb.Mappers
             return genericMapper != null ? genericMapper(record, columnIndex, this)
                 : boxedMapper != null ? (T)boxedMapper(record, columnIndex, this)!
                 : this.MapFromDbDefault<T>(record, columnIndex);
+        }
+
+        public IQueryableTable? GetQueryableTable(Type objectType)
+        {
+            Check.NotNull(objectType, nameof(objectType));
+            return this._queryableTableCache.GetOrAdd(objectType, this._getQueryableCore);
         }
 
         private static readonly MethodInfo s_mapFromDbMethod = typeof(DbToObjectMapper).GetMethod(nameof(MapFromDb));
@@ -127,10 +139,8 @@ namespace Quelimb.Mappers
 
         private int? GetNumberOfColumnsUsedCore(Type objectType)
         {
-            var customMapper = this.FindCustomMapper(objectType);
-            return customMapper != null
-                ? customMapper.GetNumberOfColumnsUsed(objectType, this)
-                : (int?)null;
+            return this.FindCustomMapper(objectType)
+                ?.GetNumberOfColumnsUsed(objectType, this);
         }
 
         private Tuple<Delegate?, Func<IDataRecord, int, DbToObjectMapper, object?>?>? CreateMapFromDbDelegate(Type objectType)
@@ -165,6 +175,12 @@ namespace Quelimb.Mappers
             return ReflectionUtils.IRecordToObjectMapperProviderCreateMapperFromRecordMethod
                 .MakeGenericMethod(objectType)
                 .Invoke(customMapper, null) as Delegate;
+        }
+
+        private IQueryableTable? GetQueryableTableCore(Type objectType)
+        {
+            return (this.FindCustomMapper(objectType) as IQueryableTableProvider)
+               ?.GetQueryableTable(objectType);
         }
 
         private ICustomDbToObjectMapper? FindCustomMapper(Type targetType)

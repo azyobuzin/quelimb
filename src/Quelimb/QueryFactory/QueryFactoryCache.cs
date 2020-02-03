@@ -12,38 +12,33 @@ namespace Quelimb.QueryFactory
         private readonly ConcurrentDictionary<CacheKey, CacheItem> _dic = new ConcurrentDictionary<CacheKey, CacheItem>();
         [ThreadStatic] private static HashAndConstantCollector? s_collector;
 
+        private readonly QueryEnvironment _environment;
+
+        public QueryFactoryCache(QueryEnvironment environment)
+        {
+            this._environment = environment;
+        }
+
         public FormattableString CreateQueryString(Expression expression)
         {
             Check.NotNull(expression, nameof(expression));
 
             var collector = s_collector ?? (s_collector = new HashAndConstantCollector());
+            collector.Reset();
+            collector.Walk(expression);
+            var hashCode = collector.Hasher.ToHashCode();
 
-            try
+            if (!this._dic.TryGetValue(new ExpressionKey(expression, hashCode), out var cacheItem))
             {
-                collector.Walk(expression);
-                var hashCode = collector.Hasher.ToHashCode();
+                // Compile the expression tree! (slow path)
+                var dlg = QueryFactoryCompiler.CreateDelegate(expression, this._environment);
+                var serialized = TreeSerializer.Serialize(expression);
 
-                if (!this._dic.TryGetValue(new ExpressionKey(expression, hashCode), out var cacheItem))
-                {
-                    // Compile the expression tree! (slow path)
-                    var dlg = this.CreateDelegate(expression);
-                    var serialized = TreeSerializer.Serialize(expression);
-
-                    cacheItem = new CacheItem(serialized, hashCode, dlg);
-                    cacheItem = this._dic.GetOrAdd(new SerializedKey(serialized, hashCode), cacheItem);
-                }
-
-                return cacheItem.CompiledDelegate(collector.ObjectConstants);
+                cacheItem = new CacheItem(serialized, hashCode, dlg);
+                cacheItem = this._dic.GetOrAdd(new SerializedKey(serialized, hashCode), cacheItem);
             }
-            finally
-            {
-                collector.Clear();
-            }
-        }
 
-        private Func<IReadOnlyList<object>, FormattableString> CreateDelegate(Expression expression)
-        {
-            throw new NotImplementedException(); // TODO
+            return cacheItem.CompiledDelegate(collector.ObjectConstants);
         }
 
         internal sealed class HashAndConstantCollector : TreeWalker
@@ -51,7 +46,7 @@ namespace Quelimb.QueryFactory
             public HashCode Hasher;
             public readonly List<object> ObjectConstants = new List<object>();
 
-            public void Clear()
+            public void Reset()
             {
                 this.Hasher = new HashCode();
                 this.ObjectConstants.Clear();

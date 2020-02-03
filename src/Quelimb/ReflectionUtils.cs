@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Quelimb.Mappers;
 using Quelimb.TableMappers;
 
@@ -75,6 +77,22 @@ namespace Quelimb
                     new[] { typeof(int) })
                 ?? throw new Exception("Could not get MethodInfo for IDataRecord.IsDBNull."));
 
+        private static MethodInfo? s_formattableStringFactoryCreateMethod;
+        public static MethodInfo FormattableStringFactoryCreateMethod =>
+            s_formattableStringFactoryCreateMethod ?? (s_formattableStringFactoryCreateMethod =
+                typeof(FormattableStringFactory).GetMethod(
+                    nameof(FormattableStringFactory.Create),
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(string), typeof(object[]) },
+                    null) ?? throw new Exception("Could not get MethodInfo for FormattableStringFactory.Create."));
+
+        private static PropertyInfo? s_iReadOnlyListObjectItemProperty;
+        public static PropertyInfo IReadOnlyListObjectItemProperty =>
+            s_iReadOnlyListObjectItemProperty ?? (s_iReadOnlyListObjectItemProperty =
+                typeof(IReadOnlyList<object>).GetProperty("Item", new[] { typeof(int) })
+                ?? throw new Exception("Could not get PropertyInfo for IReadOnlyList<object>.Item[int]."));
+
         public static readonly ImmutableHashSet<Type> TupleTypes = ImmutableHashSet.Create(
            typeof(Tuple<>), typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>),
            typeof(Tuple<,,,,>), typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), typeof(Tuple<,,,,,,,>),
@@ -93,7 +111,7 @@ namespace Quelimb
             {
                 PropertyInfo p => p.PropertyType,
                 FieldInfo f => f.FieldType,
-                _ => throw new ArgumentException("member is neither a PropertyInfo nor aFieldInfo.", nameof(member)),
+                _ => throw new ArgumentException("member is neither a PropertyInfo nor a FieldInfo.", nameof(member)),
             };
         }
     }

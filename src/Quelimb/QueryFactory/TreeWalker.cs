@@ -16,6 +16,10 @@ namespace Quelimb.QueryFactory
 
             var stack = new Stack<Expression?>();
             stack.Push(expression);
+            // Note:
+            // Push expressions in the same order as ExpressionVisitor
+            // to let QueryFactoryCompiler.Rewriter.VisitConstant be called
+            // in the same order as ReportConstantExpression.
 
             var objDic = new Dictionary<object, int>();
 
@@ -39,8 +43,8 @@ namespace Quelimb.QueryFactory
                         if (!this.OnData(e.Method?.MethodHandle.Value ?? IntPtr.Zero))
                             return false;
                         stack.Push(e.Left);
-                        stack.Push(e.Right);
                         stack.Push(e.Conversion);
+                        stack.Push(e.Right);
                         break;
 
                     case BlockExpression e:
@@ -205,8 +209,8 @@ namespace Quelimb.QueryFactory
                             stack.Push(catchBlock.Filter);
                             stack.Push(catchBlock.Body);
                         }
-                        stack.Push(e.Fault);
                         stack.Push(e.Finally);
+                        stack.Push(e.Fault);
                         break;
 
                     case TypeBinaryExpression e:
@@ -299,7 +303,7 @@ namespace Quelimb.QueryFactory
                 if (!this.OnData(type.TypeHandle.Value)) return false;
 
                 var typeCode = Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type);
-                switch (Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type))
+                switch (typeCode)
                 {
                     case TypeCode.Object:
                         // cexpr may be a closure environment.

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.ObjectPool;
 using Quelimb.CommandExecutors;
+using Quelimb.Mappers;
 using Quelimb.QueryFactory;
 using Quelimb.SqlGenerators;
 using Quelimb.TableMappers;
@@ -20,13 +21,17 @@ namespace Quelimb
 
         public ObjectPool<StringBuilder>? StringBuilderPool { get; }
         public SqlGenerator SqlGenerator { get; }
+        [Obsolete]
         public TableMapperProvider TableMapperProvider { get; }
+        [Obsolete]
         public ValueConverter ValueConverter { get; }
+        public DbToObjectMapper DbToObjectMapper { get; }
+        public ObjectToDbMapper ObjectToDbMapper { get; }
         public IFormatProvider? FormatProvider { get; }
         public CommandExecutor CommandExecutor { get; }
 
         internal ConcurrentDictionary<Type, Delegate> RecordConverterCache { get; } = new ConcurrentDictionary<Type, Delegate>();
-        internal QueryFactoryCache QueryFactoryCache { get; } = new QueryFactoryCache();
+        internal QueryFactoryCache QueryFactoryCache { get; }
 
         private QueryEnvironment()
             : this(
@@ -34,6 +39,8 @@ namespace Quelimb
                   SqlGenerator.Default,
                   DefaultTableMapperProvider.Default,
                   DefaultValueConverter.Default,
+                  DbToObjectMapper.Default,
+                  ObjectToDbMapper.Default,
                   null,
                   CommandExecutor.Default)
         { }
@@ -43,6 +50,8 @@ namespace Quelimb
             SqlGenerator sqlGenerator,
             TableMapperProvider tableMapperProvider,
             ValueConverter valueConverter,
+            DbToObjectMapper dbToObjectMapper,
+            ObjectToDbMapper objectToDbMapper,
             IFormatProvider? formatProvider,
             CommandExecutor commandExecutor)
         {
@@ -50,8 +59,11 @@ namespace Quelimb
             this.SqlGenerator = sqlGenerator ?? throw new ArgumentNullException(nameof(sqlGenerator));
             this.TableMapperProvider = tableMapperProvider ?? throw new ArgumentNullException(nameof(tableMapperProvider));
             this.ValueConverter = valueConverter ?? throw new ArgumentNullException(nameof(valueConverter));
+            this.DbToObjectMapper = dbToObjectMapper;
+            this.ObjectToDbMapper = objectToDbMapper;
             this.FormatProvider = formatProvider;
             this.CommandExecutor = commandExecutor ?? throw new ArgumentNullException(nameof(commandExecutor));
+            this.QueryFactoryCache = new QueryFactoryCache(this);
         }
 
         // TODO: QueryEnvironmentBuilder
@@ -63,6 +75,8 @@ namespace Quelimb
                 this.SqlGenerator,
                 this.TableMapperProvider,
                 this.ValueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 this.FormatProvider,
                 this.CommandExecutor);
         }
@@ -74,6 +88,8 @@ namespace Quelimb
                 sqlGenerator,
                 this.TableMapperProvider,
                 this.ValueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 this.FormatProvider,
                 this.CommandExecutor);
         }
@@ -85,6 +101,8 @@ namespace Quelimb
                 this.SqlGenerator,
                 tableMapperProvider,
                 this.ValueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 this.FormatProvider,
                 this.CommandExecutor);
         }
@@ -96,6 +114,8 @@ namespace Quelimb
                 this.SqlGenerator,
                 this.TableMapperProvider,
                 valueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 this.FormatProvider,
                 this.CommandExecutor);
         }
@@ -107,6 +127,8 @@ namespace Quelimb
                 this.SqlGenerator,
                 this.TableMapperProvider,
                 this.ValueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 formatProvider,
                 this.CommandExecutor);
         }
@@ -118,6 +140,8 @@ namespace Quelimb
                 this.SqlGenerator,
                 this.TableMapperProvider,
                 this.ValueConverter,
+                this.DbToObjectMapper,
+                this.ObjectToDbMapper,
                 this.FormatProvider,
                 commandExecutor);
         }
