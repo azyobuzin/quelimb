@@ -248,7 +248,8 @@ namespace Quelimb.Mappers
             var columnIndexParam = Expression.Parameter(typeof(int), "columnIndex");
             var rootMapperParam = Expression.Parameter(typeof(DbToObjectMapper), "rootMapper");
 
-            var fieldValueVars = columns.Select(x => Expression.Variable(ReflectionUtils.GetTypeOfPropertyOrField(x))).ToArray();
+            var bindings = ImmutableArray.CreateRange(columns,
+                member => (member, var: Expression.Variable(ReflectionUtils.GetTypeOfPropertyOrField(member))));
             var statements = new List<Expression>();
             var returnTarget = Expression.Label(objectType);
             var returnNullTarget = Expression.Label();
@@ -276,7 +277,7 @@ namespace Quelimb.Mappers
                 // Convert value
                 statements.Add(
                     Expression.Assign(
-                        fieldValueVars[i],
+                        bindings[i].var,
                         Expression.Call(
                             rootMapperParam,
                             ReflectionUtils.DbToObjectMapperMapFromDbMethod
@@ -299,25 +300,21 @@ namespace Quelimb.Mappers
             statements.Add(
                 Expression.Return(
                     returnTarget,
-                    Expression.New(
-                        constructor,
-                        constructor.GetParameters()
-                            .Select(x => (Expression)Expression.Default(x.ParameterType))
-                            .Concat(fieldValueVars),
-                        columns
+                    Expression.MemberInit(
+                        Expression.New(constructor),
+                        bindings.Select(t => Expression.Bind(t.member, t.var))
                     )));
 
             if (autoNull)
             {
                 statements.Add(Expression.Label(returnNullTarget));
-                statements.Add(Expression.Return(returnTarget, Expression.Default(objectType)));
             }
 
-            statements.Add(Expression.Label(returnTarget));
+            statements.Add(Expression.Label(returnTarget, Expression.Default(objectType)));
 
             return Expression.Lambda(
                 typeof(Func<,,,>).MakeGenericType(typeof(IDataRecord), typeof(int), typeof(DbToObjectMapper), objectType),
-                Expression.Block(fieldValueVars, statements),
+                Expression.Block(bindings.Select(t => t.var), statements),
                 recordParam, columnIndexParam, rootMapperParam).Compile();
         }
     }

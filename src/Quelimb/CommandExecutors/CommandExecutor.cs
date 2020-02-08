@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using Quelimb.Ado;
 
 namespace Quelimb.CommandExecutors
 {
@@ -69,10 +71,15 @@ namespace Quelimb.CommandExecutors
             query.SetupCommand(command);
 
             using var reader = command.ExecuteReader();
-            while (reader.Read())
+            if (!reader.Read()) yield break;
+
+            var context = new DataReaderMappingContext(reader);
+            var mapper = query.MapperFactory(context);
+
+            do
             {
-                yield return query.ReadRecord(reader);
-            }
+                yield return mapper(reader);
+            } while (reader.Read());
         }
 
         public virtual IAsyncEnumerable<TRecord> ExecuteQueryAsync<TRecord>(TypedQuery<TRecord> query, DbConnection connection, DbTransaction? transaction)
@@ -90,6 +97,7 @@ namespace Quelimb.CommandExecutors
             private CancellationToken _cancellationToken;
             private DbCommand? _command;
             private DbDataReader? _reader;
+            private Func<IDataRecord, T>? _mapper;
             private int _enumerating;
 
             public QueryAsyncIterator(
@@ -141,7 +149,13 @@ namespace Quelimb.CommandExecutors
 
                 if (await this._reader.ReadAsync(this._cancellationToken).ConfigureAwait(false))
                 {
-                    this.Current = this._query.ReadRecord(this._reader);
+                    if (this._mapper == null)
+                    {
+                        var context = new DataReaderMappingContext(this._reader);
+                        this._mapper = this._query.MapperFactory(context);
+                    }
+
+                    this.Current = this._mapper(this._reader);
                     return true;
                 }
 
@@ -184,6 +198,8 @@ namespace Quelimb.CommandExecutors
                     this._command = null;
                 }
 
+                this._mapper = null;
+
                 this._enumerating = 0;
             }
 
@@ -194,6 +210,8 @@ namespace Quelimb.CommandExecutors
 
                 this._command?.Dispose();
                 this._command = null;
+
+                this._mapper = null;
 
                 this._enumerating = 0;
             }

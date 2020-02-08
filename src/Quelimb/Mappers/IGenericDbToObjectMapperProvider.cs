@@ -23,5 +23,6 @@ namespace Quelimb.Mappers
         /// </para>
         /// </returns>
         Func<IDataRecord, int, DbToObjectMapper, T>? CreateMapperFromDb<T>();
+        // TODO: Func<IDataRecord, int, T>? CreateMapperFromDb<T>(DbToObjectMapper rootMapper);
     }
 }

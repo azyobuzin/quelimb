@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 
@@ -7,12 +8,29 @@ namespace Quelimb.QueryFactory
 {
     internal static partial class QueryFactoryCompiler
     {
-        public static Func<IReadOnlyList<object>, FormattableString> CreateDelegate(Expression expression, QueryEnvironment environment)
+        public static Func<List<object>, FormattableString> CreateDelegate(LambdaExpression lambda, QueryEnvironment environment)
         {
-            Check.NotNull(expression, nameof(expression));
-            Check.NotNull(environment, nameof(environment));
+            var tableDictionary = new Dictionary<ParameterExpression, TableReference>();
+            foreach (var parameter in lambda.Parameters)
+            {
+                var table = environment.DbToObjectMapper.GetQueryableTable(parameter.Type);
+                if (table == null)
+                    throw new ArgumentException($"A parameter `{parameter}` cannot be resolved as a table.", nameof(lambda));
 
-            throw new NotImplementedException(); // TODO
+                var parameterName = parameter.Name;
+                if (string.IsNullOrEmpty(parameterName))
+                    throw new ArgumentException("The name of one of the parameters is null or empty.", nameof(lambda));
+
+                tableDictionary.Add(parameter, new TableReference(table, parameterName));
+            }
+
+            var constantsParameter = Expression.Parameter(typeof(List<object>), "constants");
+            var expression = new Rewriter(tableDictionary, constantsParameter).Visit(lambda.Body);
+
+            Debug.Assert(typeof(FormattableString).Equals(expression));
+
+            return Expression.Lambda<Func<List<object>, FormattableString>>(expression, constantsParameter)
+                .Compile();
         }
 
         private sealed class Rewriter : ExpressionVisitor
@@ -101,7 +119,7 @@ namespace Quelimb.QueryFactory
                 var index = this._objectConstantIndex++;
                 return Expression.Property(
                     this._constantsParameter,
-                    ReflectionUtils.IReadOnlyListObjectItemProperty,
+                    ReflectionUtils.ListObjectItemProperty,
                     Expression.Constant(index));
             }
         }

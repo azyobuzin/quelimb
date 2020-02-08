@@ -94,12 +94,12 @@ namespace Quelimb.Mappers
                 .Compile();
         }
 
-        public virtual Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>? CreateMapperFromRecord()
+        public virtual Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>? CreateMapperFromRecord()
         {
             return null;
         }
 
-        Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, U>>? IRecordToObjectMapperProvider.CreateMapperFromRecord<U>()
+        Func<MappingContext, DbToObjectMapper, Func<IDataRecord, U>>? IRecordToObjectMapperProvider.CreateMapperFromRecord<U>()
         {
             if (!this.CanMapFromDb(typeof(U)))
                 throw new ArgumentException($"The type argument U is {typeof(U)}, which is not supported.");
@@ -109,21 +109,21 @@ namespace Quelimb.Mappers
             if (mapper == null) return null;
 
             if (typeof(T).IsValueType == typeof(U).IsValueType)
-                return (Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, U>>)(object)mapper;
+                return (Func<MappingContext, DbToObjectMapper, Func<IDataRecord, U>>)(object)mapper;
 
             // We need to convert the return value
-            var columnNamesParam = Expression.Parameter(typeof(IReadOnlyList<string>), "columnNames");
+            var contextParam = Expression.Parameter(typeof(MappingContext), "context");
             var rootMapperParam = Expression.Parameter(typeof(IReadOnlyList<DbToObjectMapper>), "rootMapper");
             var recordParam = Expression.Parameter(typeof(IDataRecord), "record");
             var innerMapperVar = Expression.Variable(typeof(Func<IDataRecord, T>), "innerMapper");
-            return Expression.Lambda<Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, U>>>(
+            return Expression.Lambda<Func<MappingContext, DbToObjectMapper, Func<IDataRecord, U>>>(
                 Expression.Block(
                     new[] { innerMapperVar },
                     Expression.Assign(
                         innerMapperVar,
                         Expression.Invoke(
-                            Expression.Constant(mapper, typeof(Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>)),
-                            columnNamesParam,
+                            Expression.Constant(mapper, typeof(Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>)),
+                            contextParam,
                             rootMapperParam
                         )),
                     Expression.Lambda<Func<IDataRecord, U>>(
@@ -133,7 +133,7 @@ namespace Quelimb.Mappers
                         ),
                         recordParam)
                 ),
-                columnNamesParam, rootMapperParam).Compile();
+                contextParam, rootMapperParam).Compile();
         }
     }
 }

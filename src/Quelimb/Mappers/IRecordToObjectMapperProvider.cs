@@ -15,14 +15,13 @@ namespace Quelimb.Mappers
         /// </typeparam>
         /// <returns>
         /// <para>
-        /// A delegate that takes a list of column names (the first parameter) and a root mapper (the second parameter) and returns a delegate that reads a record and returns a converted value.
-        /// The first parameter is a list of column names, which retrieved from the first record.
+        /// A delegate that takes a context object (the first parameter) and a root mapper (the second parameter) and returns a delegate that reads a record and returns a converted value.
         /// The second parameter is a root mapper, which can be used to pass a value to anothor mapper.
         /// </para>
         /// <para>
         /// If the caller should use <see cref="IGenericDbToObjectMapperProvider.CreateMapperFromDb{T}"/> or <see cref="ICustomDbToObjectMapper.MapFromDb"/>, the implementation returns <see langword="null"/>.
         /// </para>
         /// </returns>
-        Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>? CreateMapperFromRecord<T>();
+        Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>? CreateMapperFromRecord<T>();
     }
 }

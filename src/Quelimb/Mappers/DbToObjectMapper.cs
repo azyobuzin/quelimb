@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Quelimb.Mappers
@@ -67,21 +68,22 @@ namespace Quelimb.Mappers
             return this._queryableTableCache.GetOrAdd(objectType, this._getQueryableCore);
         }
 
-        private static readonly MethodInfo s_mapFromDbMethod = typeof(DbToObjectMapper).GetMethod(nameof(MapFromDb));
+        private static MethodInfo? s_mapFromDbMethod;
 
         // This method will be deleted when improving QueryAnalyzer has been completed.
         internal object? MapFromDbBoxed(Type type, IDataRecord record, int columnIndex)
         {
-            return s_mapFromDbMethod.MakeGenericMethod(type).Invoke(this, new object[] { record, columnIndex });
+            var method = s_mapFromDbMethod ?? (s_mapFromDbMethod = typeof(DbToObjectMapper).GetMethod(nameof(MapFromDb)));
+            return method.MakeGenericMethod(type).Invoke(this, new object[] { record, columnIndex });
         }
 
-        public Func<IDataRecord, T> CreateMapperFromRecord<T>(IReadOnlyList<string> columnNames)
+        public Func<IDataRecord, T> CreateMapperFromRecord<T>(MappingContext context)
         {
-            Check.NotNull(columnNames, nameof(columnNames));
+            Check.NotNull(context, nameof(context));
 
-            var recordMapper = (Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>?)
+            var recordMapper = (Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>?)
                 this._mapFromRecordCache.GetOrAdd(typeof(T), this._createMapFromRecordDelegate);
-            if (recordMapper != null) return recordMapper(columnNames, this);
+            if (recordMapper != null) return recordMapper(context, this);
 
             var (genericMapper, boxedMapper) = this.GetCustomMapper<T>();
             if (genericMapper != null) return record => genericMapper(record, 0, this);
@@ -92,6 +94,8 @@ namespace Quelimb.Mappers
 
         protected virtual T MapFromDbDefault<T>(IDataRecord record, int columnIndex)
         {
+            if (record.IsDBNull(columnIndex)) return default;
+
             if (record is DbDataReader reader && typeof(T).IsAssignableFrom(record.GetFieldType(columnIndex)))
             {
                 return reader.GetFieldValue<T>(columnIndex);
@@ -100,10 +104,16 @@ namespace Quelimb.Mappers
             return (T)Convert.ChangeType(record.GetValue(columnIndex), typeof(T));
         }
 
-        protected internal virtual (Func<IDataRecord, int, DbToObjectMapper, T>? genericMapper, Func<IDataRecord, int, DbToObjectMapper, object?>? boxedMapper) GetCustomMapper<T>()
+        protected (Func<IDataRecord, int, DbToObjectMapper, T>? genericMapper, Func<IDataRecord, int, DbToObjectMapper, object?>? boxedMapper) GetCustomMapper<T>()
         {
-            var t = this._mapFromDbCache.GetOrAdd(typeof(T), this._createMapFromDbDelegate);
-            return ((Func<IDataRecord, int, DbToObjectMapper, T>?)t?.Item1, t?.Item2);
+            var (x, y) = this.GetCustomMapper(typeof(T));
+            return ((Func<IDataRecord, int, DbToObjectMapper, T>?)x, y);
+        }
+
+        protected internal virtual (Delegate? genericMapper, Func<IDataRecord, int, DbToObjectMapper, object?>? boxedMapper) GetCustomMapper(Type objectType)
+        {
+            var t = this._mapFromDbCache.GetOrAdd(objectType, this._createMapFromDbDelegate);
+            return (t?.Item1, t?.Item2);
         }
 
         /// <summary>
@@ -201,6 +211,35 @@ namespace Quelimb.Mappers
                 return newMapper;
 
             throw new InvalidOperationException("A custom mapper created by TryCreateCustomMapper cannot map to the specified type.");
+        }
+
+        internal Expression CreateMapFromDbExpression(Type objectType, Expression recordExpression, Expression columnIndexExpression)
+        {
+            var (genericMapper, boxedMapper) = this.GetCustomMapper(objectType);
+            var thisExpr = Expression.Constant(this, typeof(DbToObjectMapper));
+
+            if (genericMapper != null)
+            {
+                return Expression.Invoke(
+                    Expression.Constant(genericMapper),
+                    recordExpression,
+                    columnIndexExpression,
+                    thisExpr);
+            }
+
+            if (boxedMapper != null)
+            {
+                return Expression.Convert(
+                    Expression.Invoke(
+                        Expression.Constant(boxedMapper),
+                        recordExpression,
+                        columnIndexExpression,
+                        thisExpr),
+                    objectType);
+            }
+
+            var method = typeof(DbToObjectMapper).GetMethod(nameof(MapFromDbDefault)).MakeGenericMethod(objectType);
+            return Expression.Call(thisExpr, method, recordExpression, columnIndexExpression);
         }
     }
 }

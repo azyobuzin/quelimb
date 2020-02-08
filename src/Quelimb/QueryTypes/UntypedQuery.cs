@@ -5,7 +5,6 @@ using System.Data.Common;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Quelimb.TableMappers;
 
 namespace Quelimb
 {
@@ -28,23 +27,10 @@ namespace Quelimb
 
         public TypedQuery<T> Map<T>()
         {
-            var valueConverter = this.Environment.ValueConverter;
-            Func<IDataRecord, T> recordConverter;
-
-            if (this.Environment.ValueConverter.CanConvertFrom(typeof(T)))
-            {
-                // Use ValueConverter
-                recordConverter = record => (T)valueConverter.ConvertFrom(record, 0, typeof(T))!;
-            }
-            else
-            {
-                // Use TableMapper
-                var tableMapper = this.Environment.TableMapperProvider.GetTableByType(typeof(T));
-                if (tableMapper == null) throw new ArgumentException($"Could not make TableMapper for {typeof(T)}.");
-                recordConverter = record => (T)tableMapper.CreateObjectFromUnorderedColumns(record, valueConverter)!;
-            }
-
-            return new TypedQuery<T>(this.Environment, this.SetupCommandAction, recordConverter);
+            return new TypedQuery<T>(
+                this.Environment,
+                this.SetupCommandAction,
+                this.Environment.DbToObjectMapper.CreateMapperFromRecord<T>);
         }
 
         public TypedQuery<TResult> Map<T1, T2, TResult>(Func<T1, T2, TResult> mapper)
@@ -128,7 +114,7 @@ namespace Quelimb
             Check.NotNull(mapper, nameof(mapper));
 
             var recordConverter = this.GetOrCreateRecordConverterFactory<TDelegate, TResult>()(mapper);
-            return new TypedQuery<TResult>(this.Environment, this.SetupCommandAction, recordConverter);
+            return new TypedQuery<TResult>(this.Environment, this.SetupCommandAction, _ => recordConverter);
         }
 
         private Func<TDelegate, Func<IDataRecord, TResult>> GetOrCreateRecordConverterFactory<TDelegate, TResult>()
@@ -159,44 +145,15 @@ namespace Quelimb
 
             var mapperParam = Expression.Parameter(delegateType, "mapper");
             var recordParam = Expression.Parameter(typeof(IDataRecord), "record");
-            var valueConverter = Expression.Constant(this.Environment.ValueConverter, typeof(ValueConverter));
 
+            var rootMapper = this.Environment.DbToObjectMapper;
             var argExprs = new List<Expression>(parameterCount);
             var columnIndex = 0;
             for (var i = 0; i < parameterCount; i++)
             {
                 var argType = genericArguments[i];
-
-                if (this.Environment.ValueConverter.CanConvertFrom(argType))
-                {
-                    // Use ValueConverter
-                    argExprs.Add(Expression.Convert(
-                        Expression.Call(
-                            valueConverter,
-                            ReflectionUtils.ValueConverterConvertFromMethod,
-                            recordParam,
-                            Expression.Constant(columnIndex),
-                            Expression.Constant(argType, typeof(Type))),
-                        argType));
-                    columnIndex++;
-                }
-                else
-                {
-                    // Use TableMapper
-                    var tableMapper = this.Environment.TableMapperProvider.GetTableByType(argType);
-                    if (tableMapper == null) throw new ArgumentException($"Could not make TableMapper for {argType}.");
-
-                    argExprs.Add(Expression.Convert(
-                        Expression.Call(
-                            Expression.Constant(tableMapper, typeof(TableMapper)),
-                            ReflectionUtils.TableMapperCreateObjectFromOrderedColumns,
-                            recordParam,
-                            Expression.Constant(columnIndex),
-                            valueConverter),
-                        argType));
-
-                    columnIndex += tableMapper.GetColumnCountForSelect();
-                }
+                argExprs.Add(rootMapper.CreateMapFromDbExpression(argType, recordParam, Expression.Constant(columnIndex)));
+                columnIndex += rootMapper.GetNumberOfColumnsUsed(argType);
             }
 
             var recordConverterType = typeof(Func<,>).MakeGenericType(typeof(IDataRecord), tResult);

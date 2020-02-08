@@ -2,6 +2,7 @@
 using System.Collections.Immutable;
 using System.Data;
 using System.Data.Common;
+using System.Linq.Expressions;
 
 namespace Quelimb.Mappers
 {
@@ -33,7 +34,8 @@ namespace Quelimb.Mappers
                         new DelegateDbToObjectMapper<uint>((r, c, _) => checked((uint)r.GetInt64(c))),
                         new DelegateDbToObjectMapper<ulong>(MapUInt64),
                         new DelegateDbToObjectMapper<DateTimeOffset>(MapDateTimeOffset),
-                        new DelegateDbToObjectMapper<ValueTuple>((_, __, ___) => ValueTuple.Create())
+                        new DelegateDbToObjectMapper<ValueTuple>((_, __, ___) => ValueTuple.Create()),
+                        new NullableMapper()
                     );
                 }
                 return s_defaultMappers;
@@ -78,6 +80,66 @@ namespace Quelimb.Mappers
 
             return Equals(fieldType, typeof(string)) ? DateTimeOffset.Parse(record.GetString(columnIndex))
                 : new DateTimeOffset(record.GetDateTime(columnIndex));
+        }
+
+        private sealed class NullableMapper : IGenericDbToObjectMapperProvider
+        {
+            public bool CanMapFromDb(Type objectType)
+            {
+                return Nullable.GetUnderlyingType(objectType) != null;
+            }
+
+            public int GetNumberOfColumnsUsed(Type objectType, DbToObjectMapper rootMapper)
+            {
+                Check.NotNull(objectType, nameof(objectType));
+                Check.NotNull(rootMapper, nameof(rootMapper));
+
+                var underlyingType = Nullable.GetUnderlyingType(objectType);
+
+                if (underlyingType == null)
+                    throw new ArgumentException($"{objectType} is not supported.", nameof(objectType));
+
+                return rootMapper.GetNumberOfColumnsUsed(underlyingType);
+            }
+
+            public Func<IDataRecord, int, DbToObjectMapper, T>? CreateMapperFromDb<T>()
+            {
+                var underlyingType = Nullable.GetUnderlyingType(typeof(T));
+
+                if (underlyingType == null)
+                    throw new ArgumentException($"The type argument T is {typeof(T)}, which is not supported.");
+
+                var recordParam = Expression.Parameter(typeof(IDataRecord), "record");
+                var columnIndexParam = Expression.Parameter(typeof(int), "columnIndex");
+                var rootMapperParam = Expression.Parameter(typeof(DbToObjectMapper), "rootMapper");
+
+                var lambda = Expression.Lambda<Func<IDataRecord, int, DbToObjectMapper, T>>(
+                    Expression.Condition(
+                        Expression.Call(recordParam, ReflectionUtils.IDataRecordIsDBNullMethod, columnIndexParam),
+                        Expression.Default(typeof(T)),
+                        Expression.Convert(
+                            Expression.Call(
+                                rootMapperParam,
+                                ReflectionUtils.DbToObjectMapperMapFromDbMethod
+                                    .MakeGenericMethod(underlyingType),
+                                recordParam,
+                                columnIndexParam),
+                            typeof(T))),
+                    recordParam, columnIndexParam, rootMapperParam);
+                return lambda.Compile();
+            }
+
+            public object? MapFromDb(Type objectType, IDataRecord record, int columnIndex, DbToObjectMapper rootMapper)
+            {
+                var underlyingType = Nullable.GetUnderlyingType(objectType);
+
+                if (underlyingType == null)
+                    throw new ArgumentException($"{objectType} is not supported.", nameof(objectType));
+
+                return record.IsDBNull(columnIndex)
+                    ? null
+                    : rootMapper.MapFromDbBoxed(underlyingType, record, columnIndex);
+            }
         }
     }
 }

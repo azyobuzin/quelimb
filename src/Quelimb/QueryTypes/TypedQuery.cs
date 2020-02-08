@@ -9,28 +9,26 @@ namespace Quelimb
 {
     public class TypedQuery<TRecord> : UntypedQuery
     {
-        protected Func<IDataRecord, TRecord> RecordConverter { get; }
+        public Func<MappingContext, Func<IDataRecord, TRecord>> MapperFactory { get; }
 
         protected internal TypedQuery(
             QueryEnvironment environment, Action<IDbCommand> setupCommand,
-            Func<IDataRecord, TRecord> recordConverter)
+            Func<MappingContext, Func<IDataRecord, TRecord>> mapperFactory)
             : base(environment, setupCommand)
         {
-            this.RecordConverter = recordConverter ?? throw new ArgumentNullException(nameof(recordConverter));
+            this.MapperFactory = mapperFactory ?? throw new ArgumentNullException(nameof(mapperFactory));
         }
 
         public TypedQuery<T> Map<T>(Func<TRecord, T> mapper)
         {
-            var recordConverter = this.RecordConverter;
+            var recordConverter = this.MapperFactory;
             return new TypedQuery<T>(
                 this.Environment, this.SetupCommandAction,
-                x => mapper(recordConverter(x)));
-        }
-
-        public TRecord ReadRecord(IDataRecord record)
-        {
-            Check.NotNull(record, nameof(record));
-            return this.RecordConverter(record);
+                context =>
+                {
+                    var conv = recordConverter(context);
+                    return record => mapper(conv(record));
+                });
         }
 
         public IEnumerable<TRecord> ExecuteQuery(DbConnection connection, DbTransaction? transaction = null)

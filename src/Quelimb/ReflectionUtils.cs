@@ -87,11 +87,11 @@ namespace Quelimb
                     new[] { typeof(string), typeof(object[]) },
                     null) ?? throw new Exception("Could not get MethodInfo for FormattableStringFactory.Create."));
 
-        private static PropertyInfo? s_iReadOnlyListObjectItemProperty;
-        public static PropertyInfo IReadOnlyListObjectItemProperty =>
-            s_iReadOnlyListObjectItemProperty ?? (s_iReadOnlyListObjectItemProperty =
-                typeof(IReadOnlyList<object>).GetProperty("Item", new[] { typeof(int) })
-                ?? throw new Exception("Could not get PropertyInfo for IReadOnlyList<object>.Item[int]."));
+        private static PropertyInfo? s_listObjectItemProperty;
+        public static PropertyInfo ListObjectItemProperty =>
+            s_listObjectItemProperty ?? (s_listObjectItemProperty =
+                typeof(List<object>).GetProperty("Item", new[] { typeof(int) })
+                ?? throw new Exception("Could not get PropertyInfo for List<object>.Item[int]."));
 
         public static readonly ImmutableHashSet<Type> TupleTypes = ImmutableHashSet.Create(
            typeof(Tuple<>), typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>),

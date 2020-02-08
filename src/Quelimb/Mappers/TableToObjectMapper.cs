@@ -145,19 +145,28 @@ namespace Quelimb.Mappers
                 this.ObjectType, this._constructor, ImmutableArray.CreateRange(this._columns, x => x.MemberInfo), this._autoNull);
         }
 
-        Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>? IRecordToObjectMapperProvider.CreateMapperFromRecord<T>()
+        Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>? IRecordToObjectMapperProvider.CreateMapperFromRecord<T>()
         {
             if (!this.CanMapFromDb(typeof(T)))
                 throw new ArgumentException($"The type argument T is {typeof(T)}, which is not supported.");
 
             if (this._mapFromRecord != null)
-                return (Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>>)this._mapFromRecord;
+                return (Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>>)this._mapFromRecord;
 
             var coreMapper = (Func<IDataRecord, int[], DbToObjectMapper, T>)this.CreateMapperFromRecordCore();
 
-            Func<IReadOnlyList<string>, DbToObjectMapper, Func<IDataRecord, T>> mapper =
-                (columnNames, rootMapper) =>
+            Func<MappingContext, DbToObjectMapper, Func<IDataRecord, T>> mapper =
+                (context, rootMapper) =>
                 {
+                    var columnNames = context.ColumnNames;
+
+                    if (columnNames == null)
+                    {
+                        var mapOrdered = ((IGenericDbToObjectMapperProvider)this).CreateMapperFromDb<T>();
+                        if (mapOrdered == null) throw new NotSupportedException();
+                        return record => mapOrdered(record, 0, rootMapper);
+                    }
+
                     var columnIndexes = new int[this._columns.Length];
                     var fieldCount = columnNames.Count;
                     for (var i = 0; i < columnIndexes.Length; i++)

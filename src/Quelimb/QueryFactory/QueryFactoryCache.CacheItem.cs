@@ -10,9 +10,9 @@ namespace Quelimb.QueryFactory
         {
             public ImmutableArray<byte> SerializedTree { get; }
             public int HashCode { get; }
-            public Func<IReadOnlyList<object>, FormattableString> CompiledDelegate { get; }
+            public Func<List<object>, FormattableString> CompiledDelegate { get; }
 
-            public CacheItem(ImmutableArray<byte> serializedTree, int hashCode, Func<IReadOnlyList<object>, FormattableString> compiledDelegate)
+            public CacheItem(ImmutableArray<byte> serializedTree, int hashCode, Func<List<object>, FormattableString> compiledDelegate)
             {
                 this.SerializedTree = serializedTree;
                 this.HashCode = hashCode;

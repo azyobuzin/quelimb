@@ -16,5 +16,6 @@ namespace Quelimb.Mappers
         int GetNumberOfColumnsUsed(Type objectType, DbToObjectMapper rootMapper);
 
         object? MapFromDb(Type objectType, IDataRecord record, int columnIndex, DbToObjectMapper rootMapper);
+        // TODO: これ要らない
     }
 }

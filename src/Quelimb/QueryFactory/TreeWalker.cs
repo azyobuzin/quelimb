@@ -111,7 +111,8 @@ namespace Quelimb.QueryFactory
                         foreach (var x in e.Parameters)
                         {
                             result = this.OnData(x.IsByRef)
-                                && this.OnData(x.Type.TypeHandle.Value);
+                                && this.OnData(x.Type.TypeHandle.Value)
+                                && this.OnData(x.Name);
                             if (!result) return false;
                         }
 

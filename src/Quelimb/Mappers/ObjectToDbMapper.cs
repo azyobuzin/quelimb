@@ -41,7 +41,7 @@ namespace Quelimb.Mappers
         private static readonly MethodInfo s_mapToDbMethod = typeof(ObjectToDbMapper).GetMethod(nameof(MapToDb));
 
         // This method will be deleted when improving QueryAnalyzer has been completed.
-        internal void MapToDbBoxed(object obj, IDbDataParameter destination)
+        internal void MapToDbBoxed(object? obj, IDbDataParameter destination)
         {
             if (obj == null)
             {

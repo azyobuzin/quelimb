@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Data;
 using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 
@@ -19,20 +20,25 @@ namespace Quelimb.QueryFactory
             this._environment = environment;
         }
 
-        public FormattableString CreateQueryString(Expression expression)
+        public void SetupCommand(LambdaExpression lambda, IDbCommand command)
         {
-            Check.NotNull(expression, nameof(expression));
+            var fs = this.CreateQueryString(lambda);
+            ResolveTableAliases(fs, this._environment);
+            SetQueryToDbCommand(fs, command, this._environment);
+        }
 
+        private FormattableString CreateQueryString(LambdaExpression lambda)
+        {
             var collector = s_collector ?? (s_collector = new HashAndConstantCollector());
             collector.Reset();
-            collector.Walk(expression);
+            collector.Walk(lambda);
             var hashCode = collector.Hasher.ToHashCode();
 
-            if (!this._dic.TryGetValue(new ExpressionKey(expression, hashCode), out var cacheItem))
+            if (!this._dic.TryGetValue(new ExpressionKey(lambda, hashCode), out var cacheItem))
             {
                 // Compile the expression tree! (slow path)
-                var dlg = QueryFactoryCompiler.CreateDelegate(expression, this._environment);
-                var serialized = TreeSerializer.Serialize(expression);
+                var dlg = QueryFactoryCompiler.CreateDelegate(lambda, this._environment);
+                var serialized = TreeSerializer.Serialize(lambda);
 
                 cacheItem = new CacheItem(serialized, hashCode, dlg);
                 cacheItem = this._dic.GetOrAdd(new SerializedKey(serialized, hashCode), cacheItem);
